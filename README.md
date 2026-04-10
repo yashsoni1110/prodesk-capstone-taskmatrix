@@ -150,7 +150,7 @@
 
 ## 🖼 UI Wireframes
 
-> **Figma Link:** *[To be added after uploading wireframes to Figma]*
+> **Figma Link:** [https://www.figma.com/design/3zV5KLsWPe9ev8SFO9bcp4/capstone-project-design?node-id=2-503&t=wqZuKGeKeZHaULHE-1]
 
 Below are the high-fidelity wireframes for the 3 core screens of TaskMatrix:
 
@@ -443,7 +443,7 @@ prodesk-capstone-taskmatrix/
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/prodesk-capstone-taskmatrix.git
+git clone https://github.com/yashsoni1110/prodesk-capstone-taskmatrix.git
 cd prodesk-capstone-taskmatrix
 
 # Install dependencies
