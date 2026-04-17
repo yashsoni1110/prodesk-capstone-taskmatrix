@@ -2,55 +2,40 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Protected route prefixes — any path that starts with one of these
- * requires an authenticated Supabase session.
+ * Proxy (Next.js 16 — formerly middleware.ts)
+ *
+ * NOTE on Supabase + localStorage:
+ * The @supabase/supabase-js v2 SDK stores its session in **localStorage** by
+ * default, not in HTTP cookies. That means the proxy (which only has access
+ * to request cookies) cannot reliably detect an active session server-side
+ * without also configuring Supabase with a custom cookie-based storage adapter
+ * (e.g. @supabase/ssr).
+ *
+ * For the MVP we do NOT use @supabase/ssr, so we:
+ *   1. Keep the proxy in place (required for Week 14 milestone).
+ *   2. Handle /login and /register canonical redirects here.
+ *   3. Pass all other traffic through — the client-side guard in
+ *      src/app/(app)/layout.tsx intercepts unauthenticated users via
+ *      initializeAuth() + useEffect redirect, which correctly reads the
+ *      localStorage session.
+ *
+ * TODO (Week 15+): integrate @supabase/ssr to set auth cookies server-side
+ * so this proxy can do proper optimistic route protection.
  */
-const PROTECTED_PREFIXES = [
-  "/dashboard",
-  "/kanban",
-  "/projects",
-  "/team",
-  "/settings",
-  "/activity",
-];
-
-/**
- * Public paths that should redirect to /dashboard when the user IS logged in.
- */
-const PUBLIC_PATHS = ["/", "/login", "/register"];
-
-/**
- * Supabase stores its session token in a cookie whose name ends with
- * "-auth-token" (e.g. sb-<project-ref>-auth-token).
- * We do an optimistic check here (no network round-trip) — the real
- * verification happens inside the app layout via initializeAuth().
- */
-function hasSupabaseSession(req: NextRequest): boolean {
-  // req.cookies is a ReadonlyRequestCookies – iterate with getAll()
-  const allCookies = req.cookies.getAll();
-  return allCookies.some((c) => c.name.endsWith("-auth-token") && !!c.value);
-}
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  const isProtected = PROTECTED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(prefix + "/")
-  );
-  const isPublic = PUBLIC_PATHS.includes(pathname);
-
-  const hasSession = hasSupabaseSession(req);
-
-  // 1. Unauthenticated user tries to access a protected route → send to login
-  if (isProtected && !hasSession) {
-    const loginUrl = new URL("/", req.nextUrl);
-    loginUrl.searchParams.set("next", pathname); // preserve intended destination
-    return NextResponse.redirect(loginUrl);
+  // Redirect /login → / (the combined auth page)
+  if (pathname === "/login") {
+    return NextResponse.redirect(new URL("/", req.nextUrl));
   }
 
-  // 2. Authenticated user visits a public/auth page → send to dashboard
-  if (isPublic && hasSession) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
+  // Redirect /register → /?mode=register
+  if (pathname === "/register") {
+    const url = new URL("/", req.nextUrl);
+    url.searchParams.set("mode", "register");
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();

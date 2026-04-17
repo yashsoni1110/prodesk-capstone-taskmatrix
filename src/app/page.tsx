@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuthStore } from "@/store/auth-store";
-import { Zap, Eye, EyeOff, ArrowRight, ChevronRight, AlertCircle } from "lucide-react";
+import { Zap, Eye, EyeOff, ArrowRight, ChevronRight, AlertCircle, CheckCircle, Mail } from "lucide-react";
 
 const features = [
   "Kanban boards with drag-and-drop",
@@ -23,11 +23,14 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("alex@taskmatrix.io");
   const [password, setPassword] = useState("password123");
-  const [error, setError] = useState("");
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
-  const login = useAuthStore((s) => s.login);
+  const login    = useAuthStore((s) => s.login);
   const register = useAuthStore((s) => s.register);
-  const loading = useAuthStore((s) => s.isLoading);
+  const loading  = useAuthStore((s) => s.isLoading);
+  const lastError = useAuthStore((s) => s.lastError);
+  const pendingEmailConfirmation = useAuthStore((s) => s.pendingEmailConfirmation);
+  const clearError = useAuthStore((s) => s.clearError);
 
   // Read ?mode=register from URL (set by /register redirect)
   useEffect(() => {
@@ -40,32 +43,35 @@ function LoginContent() {
   // Switch mode and reset form state
   const switchMode = (toRegister: boolean) => {
     setIsRegister(toRegister);
-    setError("");
+    clearError();
+    setLoginSuccess(false);
     setEmail(toRegister ? "" : "alex@taskmatrix.io");
     setPassword(toRegister ? "" : "password123");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    clearError();
+    setLoginSuccess(false);
 
-    // After login/register, redirect to ?next or /dashboard
+    // After login/register redirect to ?next or /dashboard
     const nextPath = searchParams.get("next") ?? "/dashboard";
 
     if (isRegister) {
       const success = await register(email, password);
-      if (success) {
+      // pendingEmailConfirmation=true means user was created but email not verified
+      // In that case the store already set pendingEmailConfirmation=true, just stay on page
+      if (success && !useAuthStore.getState().pendingEmailConfirmation) {
         router.push(nextPath);
-      } else {
-        setError("Registration failed. Email may already be in use or password is too weak (min. 6 chars).");
       }
+      // If !success, lastError is set in the store — displayed below
     } else {
       const success = await login(email, password);
       if (success) {
+        setLoginSuccess(true);
         router.push(nextPath);
-      } else {
-        setError("Invalid credentials. Try the pre-filled demo email.");
       }
+      // If !success, lastError is set in the store — displayed below
     }
   };
 
@@ -278,11 +284,50 @@ function LoginContent() {
               </button>
             </form>
 
-            {/* Error message */}
-            {error && (
-              <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                <p className="text-[11px] text-red-400">{error}</p>
+            {/* Error message — real Supabase error */}
+            {lastError && (
+              <div className="mt-3 flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[11px] text-red-400 font-medium">
+                    {lastError.includes("Email not confirmed")
+                      ? "Email not confirmed yet."
+                      : lastError.includes("Invalid login")
+                      ? "Wrong email or password."
+                      : lastError.includes("already registered")
+                      ? "This email is already registered. Try signing in."
+                      : lastError.includes("rate limit")
+                      ? "Too many attempts. Please wait a moment and try again."
+                      : lastError}
+                  </p>
+                  {lastError.includes("Email not confirmed") && (
+                    <p className="text-[10px] text-red-400/70 mt-0.5">
+                      Check your inbox and click the confirmation link first.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Login success flash */}
+            {loginSuccess && (
+              <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <p className="text-[11px] text-emerald-400 font-medium">Signed in! Redirecting…</p>
+              </div>
+            )}
+
+            {/* Email confirmation pending — shown after successful registration */}
+            {pendingEmailConfirmation && (
+              <div className="mt-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <p className="text-[11px] text-blue-400 font-semibold">Account created! Check your email.</p>
+                </div>
+                <p className="text-[11px] text-blue-400/70 pl-5">
+                  We sent a confirmation link to <span className="font-medium text-blue-400">{email}</span>.
+                  Click the link in the email, then come back and sign in.
+                </p>
               </div>
             )}
 

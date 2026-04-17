@@ -35,6 +35,18 @@ export interface AuthStore {
    */
   supabaseUser: SupabaseUser | null;
 
+  /**
+   * The last error message from Supabase (login / register failures).
+   * null when there is no error.
+   */
+  lastError: string | null;
+
+  /**
+   * True after signUp when Supabase requires email confirmation before
+   * the session is created. The user was created but cannot log in yet.
+   */
+  pendingEmailConfirmation: boolean;
+
   // ── Actions ──────────────────────────────────────────────────────────────────
 
   /**
@@ -46,7 +58,8 @@ export interface AuthStore {
 
   /**
    * Register a new user via Supabase signUp.
-   * Returns true on success, false on failure.
+   * Returns true on success (or pending confirmation), false on hard failure.
+   * Check pendingEmailConfirmation to distinguish the two success cases.
    */
   register: (email: string, password: string) => Promise<boolean>;
 
@@ -73,6 +86,9 @@ export interface AuthStore {
 
   /** Partially update the current user's profile fields. */
   updateProfile: (changes: Partial<Pick<User, "name" | "email" | "avatar">>) => void;
+
+  /** Clear the last error message. */
+  clearError: () => void;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -101,6 +117,8 @@ export const useAuthStore = create<AuthStore>()((set) => ({
   isLoading: false,
   initialized: false,
   supabaseUser: null,
+  lastError: null,
+  pendingEmailConfirmation: false,
 
   // ── initializeAuth ──────────────────────────────────────────────────────────
   initializeAuth() {
@@ -167,7 +185,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
 
   // ── login ───────────────────────────────────────────────────────────────────
   async login(email, password) {
-    set({ isLoading: true });
+    set({ isLoading: true, lastError: null });
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -182,6 +200,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
         isAuthenticated: true,
         initialized: true,
         isLoading: false,
+        lastError: null,
       });
       return true;
     }
@@ -189,31 +208,54 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     // Fallback: demo-only mock match (no real Supabase user required)
     const mockUser = findMockUser(email);
     if (mockUser) {
-      set({ user: mockUser, isAuthenticated: true, initialized: true, isLoading: false });
+      set({ user: mockUser, isAuthenticated: true, initialized: true, isLoading: false, lastError: null });
       return true;
     }
 
-    set({ isLoading: false });
+    // Surface the real Supabase error so the UI can show something meaningful
+    const msg = error?.message ?? "Login failed. Please check your credentials.";
+    set({ isLoading: false, lastError: msg });
     return false;
   },
 
   // ── register ─────────────────────────────────────────────────────────────────
   async register(email, password) {
-    set({ isLoading: true });
+    set({ isLoading: true, lastError: null, pendingEmailConfirmation: false });
 
     const { data, error } = await supabase.auth.signUp({ email, password });
 
-    if (error || !data.user) {
-      set({ isLoading: false });
+    if (error) {
+      set({ isLoading: false, lastError: error.message });
       return false;
     }
 
+    if (!data.user) {
+      set({ isLoading: false, lastError: "Registration failed. Please try again." });
+      return false;
+    }
+
+    // Supabase returns a user but NO session when email confirmation is required.
+    // In that case we set pendingEmailConfirmation=true instead of marking
+    // the user as authenticated.
+    if (!data.session) {
+      set({
+        isLoading: false,
+        initialized: true,
+        pendingEmailConfirmation: true,
+        lastError: null,
+      });
+      return true; // true = no hard error; check pendingEmailConfirmation in UI
+    }
+
+    // Session available immediately (email confirmation disabled in Supabase)
     set({
       supabaseUser: toSupabaseUser(data.user),
       user: findMockUser(email) ?? null,
       isAuthenticated: true,
       initialized: true,
       isLoading: false,
+      pendingEmailConfirmation: false,
+      lastError: null,
     });
     return true;
   },
@@ -228,6 +270,11 @@ export const useAuthStore = create<AuthStore>()((set) => ({
       initialized: true,
       isLoading: false,
     });
+  },
+
+  // ── clearError ────────────────────────────────────────────────────────────
+  clearError() {
+    set({ lastError: null });
   },
 
   // ── updateProfile (unchanged) ─────────────────────────────────────────────
@@ -253,6 +300,13 @@ export const useAuthInitialized = () => useAuthStore((s) => s.initialized);
 /** Returns the Supabase-authenticated user (id + email), or null. */
 export const useSupabaseUser = () => useAuthStore((s) => s.supabaseUser);
 
+/** Returns the last Supabase error message (or null). */
+export const useAuthError = () => useAuthStore((s) => s.lastError);
+
+/** Returns true when registration succeeded but email confirmation is needed. */
+export const usePendingEmailConfirmation = () =>
+  useAuthStore((s) => s.pendingEmailConfirmation);
+
 /** Returns action functions with stable references. */
 export function useAuthActions() {
   const login = useAuthStore((s) => s.login);
@@ -261,5 +315,6 @@ export function useAuthActions() {
   const getCurrentUser = useAuthStore((s) => s.getCurrentUser);
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
   const updateProfile = useAuthStore((s) => s.updateProfile);
-  return { login, logout, register, getCurrentUser, initializeAuth, updateProfile };
+  const clearError = useAuthStore((s) => s.clearError);
+  return { login, logout, register, getCurrentUser, initializeAuth, updateProfile, clearError };
 }
