@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +26,7 @@ export default function ProjectsPage() {
   const projects = useProjects();
   const tasks    = useTasks();
   const { deleteProject } = useProjectActions();
-
+  const router   = useRouter();
   const [search, setSearch] = useState("");
 
   const filtered = projects.filter((p) =>
@@ -111,7 +112,8 @@ export default function ProjectsPage() {
               <Card
                 key={project.id}
                 id={`project-card-${project.id}`}
-                className="group border-border/50 hover:border-border hover:shadow-md transition-all duration-150 overflow-hidden"
+                onClick={() => router.push("/kanban")}
+                className="group border-border/50 hover:border-primary/40 hover:shadow-md transition-all duration-150 overflow-hidden cursor-pointer"
               >
                 {/* Color accent bar */}
                 <div className="h-1 w-full" style={{ backgroundColor: project.color }} />
@@ -149,16 +151,15 @@ export default function ProjectsPage() {
                       </Badge>
                       <DropdownMenu>
                         <DropdownMenuTrigger
+                          onClick={(e) => e.stopPropagation()}
                           className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
                           id={`project-menu-${project.id}`}
                         >
                           <MoreHorizontal className="w-4 h-4" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
-                          <DropdownMenuItem>
-                            <Link href="/kanban" className="flex items-center gap-2 w-full">
-                              <ExternalLink className="w-3.5 h-3.5" /> Open Board
-                            </Link>
+                        <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem onSelect={() => router.push("/kanban")}>
+                            <ExternalLink className="w-3.5 h-3.5" /> Open Board
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
@@ -198,36 +199,39 @@ export default function ProjectsPage() {
                     )}
                   </div>
 
-                  {/* Members + CTA */}
-                  <div className="flex items-center justify-between pt-0.5">
-                    <div className="flex items-center">
-                      {project.members.slice(0, 5).map((member) => (
-                        <Avatar
-                          key={member.id}
-                          className="h-7 w-7 -ml-2 first:ml-0 border-2 border-card"
-                          title={member.name}
-                        >
-                          <AvatarFallback className="text-[9px] font-bold bg-gradient-to-br from-primary to-violet-600 text-white">
-                            {member.initials}
-                          </AvatarFallback>
-                        </Avatar>
-                      ))}
-                      {project.members.length > 5 && (
-                        <span className="text-xs text-muted-foreground ml-2">
-                          +{project.members.length - 5}
-                        </span>
-                      )}
-                      {project.members.length === 0 && (
-                        <span className="text-xs text-muted-foreground">No members</span>
-                      )}
-                    </div>
+                    <div className="flex items-center justify-between pt-0.5">
+                      <div className="flex items-center">
+                        {project.members.slice(0, 5).map((member) => (
+                          <Avatar
+                            key={member.id}
+                            className="h-7 w-7 -ml-2 first:ml-0 border-2 border-card"
+                            title={member.name}
+                          >
+                            <AvatarFallback className="text-[9px] font-bold bg-gradient-to-br from-primary to-violet-600 text-white">
+                              {member.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                        ))}
+                        {project.members.length > 5 && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            +{project.members.length - 5}
+                          </span>
+                        )}
+                        {project.members.length === 0 && (
+                          <span className="text-xs text-muted-foreground">No members</span>
+                        )}
+                      </div>
 
-                    <Link href="/kanban" id={`open-board-${project.id}-link`}>
-                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); router.push("/kanban"); }}
+                        className="h-7 text-xs gap-1.5"
+                        id={`open-board-${project.id}-btn`}
+                      >
                         <ExternalLink className="w-3 h-3" /> Open Board
                       </Button>
-                    </Link>
-                  </div>
+                    </div>
                 </CardContent>
               </Card>
             );

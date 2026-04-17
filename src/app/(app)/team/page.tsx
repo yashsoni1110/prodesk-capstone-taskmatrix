@@ -12,21 +12,42 @@ import {
   UserPlus, CheckCircle2, Clock, AlertCircle,
   Search, Mail, Shield,
 } from "lucide-react";
-import { MOCK_USERS } from "@/lib/data";
 import { useTasks } from "@/store/task-store";
+import { useAuthStore } from "@/store/auth-store";
+import { useInvitedMembers } from "@/store/team-store";
+import { InviteMemberDialog } from "@/components/invite-member-dialog";
+import { MOCK_USERS } from "@/lib/data";
+import type { User } from "@/lib/data";
 
 const ROLE_STYLES: Record<string, { badge: string; grad: string }> = {
   admin:     { badge: "bg-violet-500/15 text-violet-400 border-violet-500/30",  grad: "from-violet-500 to-purple-600"  },
   manager:   { badge: "bg-blue-500/15   text-blue-400   border-blue-500/30",    grad: "from-blue-500   to-cyan-600"    },
   developer: { badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30", grad: "from-emerald-500 to-teal-600" },
   designer:  { badge: "bg-pink-500/15   text-pink-400   border-pink-500/30",    grad: "from-pink-500   to-rose-600"    },
+  member:    { badge: "bg-slate-500/15  text-slate-400  border-slate-500/30",   grad: "from-slate-500  to-slate-600"   },
 };
 
 export default function TeamPage() {
-  const tasks  = useTasks();
+  const tasks        = useTasks();
+  const storeUser     = useAuthStore((s) => s.user);
+  const invitedMembers = useInvitedMembers();
   const [search, setSearch] = useState("");
 
-  const members = MOCK_USERS.filter(
+  /**
+   * Decide which team roster to show:
+   * - Mock users → full 5-person demo team + any invited
+   * - Real new users → just themselves + invited members
+   */
+  const isMockUser = storeUser
+    ? MOCK_USERS.some((u) => u.id === storeUser.id)
+    : false;
+
+  const rosterBase: User[] = [
+    ...(isMockUser ? MOCK_USERS : storeUser ? [storeUser] : []),
+    ...invitedMembers,
+  ];
+
+  const members = rosterBase.filter(
     (u) =>
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.role.toLowerCase().includes(search.toLowerCase()) ||
@@ -45,21 +66,19 @@ export default function TeamPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Team Members</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {MOCK_USERS.length} members · {doneTasks} of {totalTasks} tasks completed
+            {rosterBase.length} member{rosterBase.length !== 1 ? "s" : ""} · {doneTasks} of {totalTasks} tasks completed
           </p>
         </div>
-        <Button className="gap-2 h-9 self-start sm:self-auto" id="invite-member-btn">
-          <UserPlus className="w-4 h-4" /> Invite Member
-        </Button>
+        <InviteMemberDialog />
       </div>
 
       {/* ── Summary cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Members",    value: MOCK_USERS.length,                                                       color: "bg-primary/10",       text: "text-primary"    },
-          { label: "Tasks Done", value: doneTasks,                                                               color: "bg-emerald-500/10",   text: "text-emerald-400" },
-          { label: "In Progress",value: tasks.filter((t) => t.status === "in-progress").length,                  color: "bg-violet-500/10",    text: "text-violet-400"  },
-          { label: "Critical",   value: tasks.filter((t) => t.priority === "critical").length,                   color: "bg-red-500/10",       text: "text-red-400"     },
+          { label: "Members",     value: rosterBase.length,                                            color: "bg-primary/10",       text: "text-primary"    },
+          { label: "Tasks Done",  value: doneTasks,                                                    color: "bg-emerald-500/10",   text: "text-emerald-400" },
+          { label: "In Progress", value: tasks.filter((t) => t.status === "in-progress").length,       color: "bg-violet-500/10",    text: "text-violet-400"  },
+          { label: "Critical",    value: tasks.filter((t) => t.priority === "critical").length,        color: "bg-red-500/10",       text: "text-red-400"     },
         ].map(({ label, value, color, text }) => (
           <div key={label} className={`rounded-xl border border-border/50 ${color} p-3.5`}>
             <p className={`text-2xl font-bold tabular-nums ${text}`}>{value}</p>
@@ -83,12 +102,12 @@ export default function TeamPage() {
       {/* ── Member list ── */}
       <div className="grid gap-3">
         {members.map((user) => {
-          const userTasks    = tasks.filter((t) => t.assignee.id === user.id);
-          const done         = userTasks.filter((t) => t.status === "done").length;
-          const inProgress   = userTasks.filter((t) => t.status === "in-progress").length;
-          const critical     = userTasks.filter((t) => t.priority === "critical").length;
-          const pct          = userTasks.length > 0 ? Math.round((done / userTasks.length) * 100) : 0;
-          const style        = ROLE_STYLES[user.role] ?? ROLE_STYLES.developer;
+          const userTasks  = tasks.filter((t) => t.assignee.id === user.id);
+          const done       = userTasks.filter((t) => t.status === "done").length;
+          const inProgress = userTasks.filter((t) => t.status === "in-progress").length;
+          const critical   = userTasks.filter((t) => t.priority === "critical").length;
+          const pct        = userTasks.length > 0 ? Math.round((done / userTasks.length) * 100) : 0;
+          const style      = ROLE_STYLES[user.role] ?? ROLE_STYLES.member;
 
           return (
             <Card key={user.id} id={`team-member-${user.id}`} className="border-border/50 hover:border-border transition-colors group">
@@ -170,10 +189,25 @@ export default function TeamPage() {
           );
         })}
 
-        {members.length === 0 && (
+        {/* Empty state for new users */}
+        {members.length === 0 && !search && !isMockUser && (
+          <div className="flex flex-col items-center py-16 gap-3 text-center">
+            <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
+              <UserPlus className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Just you for now</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Click <span className="font-medium text-foreground">Invite Member</span> to add teammates to your workspace.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {members.length === 0 && search && (
           <div className="flex flex-col items-center py-16 gap-2">
             <UserPlus className="w-8 h-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">No members match "{search}"</p>
+            <p className="text-sm text-muted-foreground">No members match &quot;{search}&quot;</p>
           </div>
         )}
       </div>

@@ -9,6 +9,9 @@ export interface NewProjectInput {
   description?: string;
   color?: string;
   dueDate?: string;
+  /** Pass pre-built User objects (from free-text input) */
+  members?: User[];
+  /** Legacy: pass mock user IDs to look up from MOCK_USERS */
   memberIds?: string[];
 }
 
@@ -50,9 +53,12 @@ export const useProjectStore = create<ProjectStore>()(
     projects: MOCK_PROJECTS,
 
     addProject(input) {
-      const members: User[] = (input.memberIds ?? ["u1"])
-        .map((id) => MOCK_USERS.find((u) => u.id === id))
-        .filter(Boolean) as User[];
+      // Prefer directly-provided User objects over ID-based MOCK_USERS lookup
+      const members: User[] = input.members
+        ? input.members
+        : (input.memberIds ?? ["u1"])
+            .map((id) => MOCK_USERS.find((u) => u.id === id))
+            .filter(Boolean) as User[];
 
       const project: Project = {
         id: nextProjectId(),

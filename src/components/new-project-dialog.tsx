@@ -9,12 +9,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, CheckCircle2 } from "lucide-react";
+import { Plus, CheckCircle2, X, UserPlus } from "lucide-react";
 import { useProjectActions, PROJECT_COLORS } from "@/store/project-store";
-import { MOCK_USERS } from "@/lib/data";
+import { useAuthStore } from "@/store/auth-store";
 
 export function NewProjectDialog() {
   const { addProject } = useProjectActions();
+  const storeUser = useAuthStore((s) => s.user);
 
   const [open,    setOpen]    = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,17 +24,32 @@ export function NewProjectDialog() {
   const [desc,    setDesc]    = useState("");
   const [color,   setColor]   = useState<typeof PROJECT_COLORS[number]>(PROJECT_COLORS[0]);
   const [dueDate, setDueDate] = useState("");
-  const [memberIds, setMemberIds] = useState<string[]>(["u1"]);
+
+  /* ── Custom member list (free-text names) ── */
+  // Always start with the logged-in user pre-added
+  const selfName = storeUser?.name ?? "";
+  const [memberInput, setMemberInput] = useState("");
+  const [members, setMembers] = useState<string[]>(selfName ? [selfName] : []);
+
+  const addMember = () => {
+    const trimmed = memberInput.trim();
+    if (!trimmed || members.includes(trimmed)) { setMemberInput(""); return; }
+    setMembers((prev) => [...prev, trimmed]);
+    setMemberInput("");
+  };
+
+  const removeMember = (name: string) => {
+    // Don't allow removing yourself
+    if (name === selfName) return;
+    setMembers((prev) => prev.filter((m) => m !== name));
+  };
 
   const reset = () => {
     setName(""); setDesc(""); setColor(PROJECT_COLORS[0]);
-    setDueDate(""); setMemberIds(["u1"]); setSuccess(false);
+    setDueDate(""); setMemberInput("");
+    setMembers(selfName ? [selfName] : []);
+    setSuccess(false);
   };
-
-  const toggleMember = (id: string) =>
-    setMemberIds((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
-    );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +57,23 @@ export function NewProjectDialog() {
     setLoading(true);
     await new Promise((r) => setTimeout(r, 400));
 
-    addProject({ name: name.trim(), description: desc, color, dueDate: dueDate || undefined, memberIds });
+    // Build minimal User objects from the free-text member names
+    const memberUsers = members.map((m, i) => ({
+      id: storeUser?.id ? (m === selfName ? storeUser.id : `custom-${i}`) : `custom-${i}`,
+      name: m,
+      email: m === selfName ? (storeUser?.email ?? "") : "",
+      avatar: "",
+      initials: m.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
+      role: (m === selfName ? (storeUser?.role ?? "developer") : "developer") as "admin" | "manager" | "developer" | "designer",
+    }));
+
+    addProject({
+      name: name.trim(),
+      description: desc,
+      color,
+      dueDate: dueDate || undefined,
+      members: memberUsers,
+    });
 
     setLoading(false);
     setSuccess(true);
@@ -71,7 +103,7 @@ export function NewProjectDialog() {
               <CheckCircle2 className="w-6 h-6 text-emerald-500" />
             </div>
             <p className="text-sm font-medium">Project created!</p>
-            <p className="text-xs text-muted-foreground">"{name}" is ready</p>
+            <p className="text-xs text-muted-foreground">&quot;{name}&quot; is ready</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 pt-1">
@@ -136,31 +168,62 @@ export function NewProjectDialog() {
               />
             </div>
 
-            {/* Members */}
-            <div className="space-y-1.5">
+            {/* ── Custom team members ── */}
+            <div className="space-y-2">
               <Label className="text-xs font-medium">Team members</Label>
-              <div className="flex flex-wrap gap-2">
-                {MOCK_USERS.map((u) => {
-                  const selected = memberIds.includes(u.id);
-                  return (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => toggleMember(u.id)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
-                        selected
-                          ? "bg-primary/15 border-primary/40 text-primary"
-                          : "bg-muted border-border text-muted-foreground hover:border-border/80"
-                      }`}
+
+              {/* Added members chips */}
+              {members.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {members.map((m) => (
+                    <span
+                      key={m}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/15 border border-primary/30 text-primary"
                     >
-                      <span className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-violet-600 text-[9px] text-white flex items-center justify-center font-bold shrink-0">
-                        {u.initials.charAt(0)}
+                      <span className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-violet-600 text-[8px] text-white flex items-center justify-center font-bold shrink-0">
+                        {m.charAt(0).toUpperCase()}
                       </span>
-                      {u.name.split(" ")[0]}
-                    </button>
-                  );
-                })}
+                      {m}
+                      {m !== selfName && (
+                        <button
+                          type="button"
+                          onClick={() => removeMember(m)}
+                          className="ml-0.5 hover:text-destructive transition-colors"
+                          aria-label={`Remove ${m}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Add member input */}
+              <div className="flex gap-2">
+                <Input
+                  id="member-name-input"
+                  placeholder="Type a name and press Add…"
+                  value={memberInput}
+                  onChange={(e) => setMemberInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addMember(); } }}
+                  className="h-8 text-[12px] flex-1"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={addMember}
+                  disabled={!memberInput.trim()}
+                  className="h-8 px-3 gap-1 text-xs"
+                  id="add-member-btn"
+                >
+                  <UserPlus className="w-3.5 h-3.5" /> Add
+                </Button>
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                You are added automatically. Type names of teammates to add.
+              </p>
             </div>
 
             <DialogFooter className="pt-2">
