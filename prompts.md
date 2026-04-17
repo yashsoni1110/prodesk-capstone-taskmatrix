@@ -1,6 +1,6 @@
 # Prompts Used During Development
 
-These are the AI prompts I used for help while building TaskMatrix, ordered roughly from project start to UI polish.
+These are the AI prompts I used for help while building TaskMatrix, ordered from project start through Week 14 MVP completion.
 
 ---
 
@@ -43,7 +43,7 @@ These are the AI prompts I used for help while building TaskMatrix, ordered roug
 
 ### 5. Team store
 
-> I need a team store similar to my other stores. It should manage team members (extending User with joinedAt and status fields). Actions needed: inviteMember, removeMember, updateRole, updateStatus. Initialize from MOCK_USERS.
+> I need a team store similar to my other stores. It should manage invited team members as User objects. Actions needed: inviteMember({ name, email }), removeMember(id), clearInvited(). Export useInvitedMembers() selector hook.
 
 ---
 
@@ -149,3 +149,91 @@ These are the AI prompts I used for help while building TaskMatrix, ordered roug
 ### 22. Settings page with tabs
 
 > I need a settings page with a tabbed layout using shadcn/ui Tabs component. Three tabs: Profile (name, email fields with save button), Workspace (app preferences), and Notifications (toggle switches for different notification types). The Profile tab should connect to my auth store's updateProfile function.
+
+---
+
+## 🔐 Week 14 — Supabase Auth & MVP
+
+### 23. Connecting Supabase auth to Next.js
+
+> I want to replace my mock auth store with real Supabase authentication in Next.js 16. I'm using @supabase/supabase-js v2 (not @supabase/ssr). How do I:
+> - Create a supabase client in src/lib/supabase.ts
+> - Update my Zustand auth store to call supabase.auth.signUp() and signInWithPassword()
+> - Set up onAuthStateChange() to keep the store in sync with the Supabase session
+> - Keep it SSR-safe (session in localStorage, not cookies)
+
+---
+
+### 24. Building real user profile from Supabase session
+
+> When a new user registers with Supabase, I only get their email and a UUID — no name. I want to build a `buildUserFromSupabase()` helper that creates a proper User object for my Zustand store from just the email. For example, `john.doe@gmail.com` should become name "John Doe" with initials "JD". Priority: if the email matches a MOCK_USER, use their full profile. Otherwise derive from email.
+
+---
+
+### 25. Fixing the proxy/middleware redirect loop
+
+> My Next.js 16 app has a proxy.ts (middleware) that was checking for Supabase auth cookies to protect routes, but Supabase JS v2 stores sessions in localStorage, not cookies. This caused a redirect loop where authenticated users were being sent back to /login. How do I fix this? Should I remove the cookie check from middleware and handle route protection client-side instead?
+
+---
+
+### 26. Client-side route guard with Supabase localStorage session
+
+> How do I protect Next.js App Router routes using client-side state, not middleware? I have a `(app)/layout.tsx` that wraps all my protected pages. I want it to call `supabase.auth.getSession()` (or my Zustand initializeAuth function) on mount, wait for the result, then redirect to `/` if the user isn't authenticated. I need to show a loading spinner while checking to prevent a flash of the protected page.
+
+---
+
+### 27. Settings page with real Supabase profile data
+
+> My settings page currently has hardcoded "Alex Morgan" as the default name. I want to update it to:
+> - Pre-fill name and email fields from the real logged-in Supabase user (from my Zustand auth store)
+> - Use useEffect to sync fields if the store loads after component mount
+> - Wire "Save Changes" to call updateProfile() in my auth store so topbar updates immediately
+> - Wire "Change Password" to call supabase.auth.updateUser({ password: newPw }) — re-authenticate first with current password
+
+---
+
+### 28. Team page — show real user only for new registrations
+
+> My team page was showing 5 hardcoded mock users for everyone. I want to change it so:
+> - If logged in as one of the mock demo users (alex@taskmatrix.io etc.) → show the full mock team (for demo purposes)
+> - If logged in as any real new registered user → show only themselves ("Just you for now" empty state)
+> - Invited members (via InviteDialog) → always shown in team list regardless
+
+---
+
+### 29. Invite Member dialog with Zustand team store
+
+> I want an "Invite Member" button in my team page that opens a dialog. The dialog should:
+> - Have a name field and email field (with validation)
+> - On submit, call a `team-store.inviteMember({ name, email })` function that builds a User object with derived initials
+> - Show a success screen with the person's name after invite
+> - The invited member should appear immediately in the team list
+
+---
+
+### 30. New Project dialog with custom free-text member input
+
+> My New Project dialog currently shows 5 MOCK_USERS as selectable chip buttons. I want to change this to a free-text input where:
+> - The logged-in user is pre-added automatically as the first member (cannot be removed)
+> - The user can type any name and click "Add" or press Enter to add a custom team member
+> - Each added member shows as a removable chip with their initial as avatar
+> - The project-store's addProject() should accept a direct members[] array instead of only memberIds[]
+
+---
+
+### 31. Making project cards clickable
+
+> My project cards on the /projects page have an "Open Board" button but clicking anywhere else on the card does nothing. I want:
+> - The entire card to navigate to /kanban when clicked (using router.push)
+> - The three-dot dropdown menu trigger to stopPropagation() so it doesn't also navigate
+> - The dropdown menu items to use onSelect + router.push instead of Link inside DropdownMenuItem
+> - The "Open Board" button to also stopPropagation and navigate independently
+
+---
+
+### 32. Fixing TypeScript build errors for Vercel deployment
+
+> My Vercel deployment is failing with TypeScript errors. The error is in src/lib/api.ts: "Property 'members' does not exist on type 'TeamStore'" and in src/store/index.ts: "Module team-store has no exported member useTeamMembers". My team store was refactored and now uses `invitedMembers` instead of `members`, and removed useTeamMembers/useTeamActions hooks. How do I fix the barrel file and api.ts to match the new store shape?
+
+---
+
