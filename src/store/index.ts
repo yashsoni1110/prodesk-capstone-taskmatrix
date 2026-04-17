@@ -50,13 +50,10 @@ export type {
 // ── Team Store ────────────────────────────────────────────────────────────────
 export {
   useTeamStore,
-  useTeamMembers,
-  useActiveMembers,
-  useTeamMember,
-  useTeamActions,
+  useInvitedMembers,
 } from "./team-store";
 
-export type { TeamMember, TeamStore } from "./team-store";
+export type { TeamStore } from "./team-store";
 
 // ── Notification Store ────────────────────────────────────────────────────────
 export {

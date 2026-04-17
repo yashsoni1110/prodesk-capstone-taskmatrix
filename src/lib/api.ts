@@ -15,7 +15,7 @@ import { useProjectStore } from "@/store/project-store";
 import { useAuthStore } from "@/store/auth-store";
 import { useTeamStore } from "@/store/team-store";
 import { MOCK_USERS } from "@/lib/data";
-import type { Task, TaskStatus, User, Role } from "@/lib/data";
+import type { Task, TaskStatus, User } from "@/lib/data";
 import type { NewTaskInput, UpdateTaskInput } from "@/store/task-store";
 import type { NewProjectInput, UpdateProjectInput } from "@/store/project-store";
 
@@ -151,33 +151,27 @@ export const projectsApi = {
 // ── Users / Team API ──────────────────────────────────────────────────────────
 
 export const usersApi = {
-  /** GET /api/users */
+  /** GET /api/users — returns invited members from the team store */
   async fetchAll() {
     await delay();
-    return useTeamStore.getState().members;
+    return useTeamStore.getState().invitedMembers;
   },
 
   /** GET /api/users/:id */
   async fetchById(id: string) {
     await delay();
-    return useTeamStore.getState().members.find((m) => m.id === id);
+    return useTeamStore.getState().invitedMembers.find((m) => m.id === id);
   },
 
   /** POST /api/users/invite */
-  async invite(email: string, name: string, role: Role) {
+  async invite(name: string, email: string) {
     await delay();
-    return useTeamStore.getState().inviteMember(email, name, role);
+    return useTeamStore.getState().inviteMember({ name, email });
   },
 
   /** DELETE /api/users/:id */
   async remove(id: string) {
     await delay();
     return useTeamStore.getState().removeMember(id);
-  },
-
-  /** PATCH /api/users/:id/role */
-  async updateRole(id: string, role: Role) {
-    await delay();
-    useTeamStore.getState().updateRole(id, role);
   },
 };
