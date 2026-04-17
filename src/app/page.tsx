@@ -1,15 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuthStore } from "@/store/auth-store";
-import {
-  Dialog, DialogContent, DialogHeader,
-  DialogTitle, DialogDescription,
-} from "@/components/ui/dialog";
-import { Zap, Eye, EyeOff, ArrowRight, ChevronRight, AlertCircle, X } from "lucide-react";
+import { Zap, Eye, EyeOff, ArrowRight, ChevronRight, AlertCircle } from "lucide-react";
 
 const features = [
   "Kanban boards with drag-and-drop",
@@ -20,26 +16,56 @@ const features = [
 
 const logos = ["Vercel", "Linear", "Stripe", "Figma", "Notion"];
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [isRegister, setIsRegister] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("alex@taskmatrix.io");
   const [password, setPassword] = useState("password123");
   const [error, setError] = useState("");
-  const [showSignUp, setShowSignUp] = useState(false);
-  const [signUpLoading, setSignUpLoading] = useState(false);
 
   const login = useAuthStore((s) => s.login);
+  const register = useAuthStore((s) => s.register);
   const loading = useAuthStore((s) => s.isLoading);
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  // Read ?mode=register from URL (set by /register redirect)
+  useEffect(() => {
+    if (searchParams.get("mode") === "register") {
+      switchMode(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Switch mode and reset form state
+  const switchMode = (toRegister: boolean) => {
+    setIsRegister(toRegister);
+    setError("");
+    setEmail(toRegister ? "" : "alex@taskmatrix.io");
+    setPassword(toRegister ? "" : "password123");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const success = await login(email, password);
-    if (success) {
-      router.push("/dashboard");
+
+    // After login/register, redirect to ?next or /dashboard
+    const nextPath = searchParams.get("next") ?? "/dashboard";
+
+    if (isRegister) {
+      const success = await register(email, password);
+      if (success) {
+        router.push(nextPath);
+      } else {
+        setError("Registration failed. Email may already be in use or password is too weak (min. 6 chars).");
+      }
     } else {
-      setError("Invalid credentials. Try the pre-filled demo email.");
+      const success = await login(email, password);
+      if (success) {
+        router.push(nextPath);
+      } else {
+        setError("Invalid credentials. Try the pre-filled demo email.");
+      }
     }
   };
 
@@ -126,14 +152,14 @@ export default function LoginPage() {
           </div>
           <div className="ml-auto flex items-center gap-3">
             <span className="text-[13px] text-muted-foreground hidden sm:block">
-              No account?{" "}
+              {isRegister ? "Already have an account?" : "No account?"}{" "}
               <button
                 type="button"
-                onClick={() => setShowSignUp(true)}
+                onClick={() => switchMode(!isRegister)}
                 className="text-foreground/70 hover:text-foreground transition-colors font-medium"
-                id="signup-link"
+                id="auth-mode-toggle"
               >
-                Sign up
+                {isRegister ? "Sign in" : "Sign up"}
               </button>
             </span>
             <ThemeToggle />
@@ -146,8 +172,14 @@ export default function LoginPage() {
 
             {/* Heading */}
             <div className="mb-7">
-              <h1 className="text-foreground text-xl font-semibold tracking-tight mb-1">Welcome back</h1>
-              <p className="text-muted-foreground text-[13px]">Sign in to continue to your workspace</p>
+              <h1 className="text-foreground text-xl font-semibold tracking-tight mb-1">
+                {isRegister ? "Create your account" : "Welcome back"}
+              </h1>
+              <p className="text-muted-foreground text-[13px]">
+                {isRegister
+                  ? "Sign up to start managing your projects"
+                  : "Sign in to continue to your workspace"}
+              </p>
             </div>
 
             {/* OAuth */}
@@ -175,8 +207,8 @@ export default function LoginPage() {
               <div className="flex-1 h-px bg-border" />
             </div>
 
-            {/* Email form */}
-            <form onSubmit={handleSignIn} className="space-y-3.5">
+            {/* Unified email/password form */}
+            <form onSubmit={handleSubmit} className="space-y-3.5">
               <div className="space-y-1.5">
                 <label htmlFor="email" className="block text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
                   Email address
@@ -197,9 +229,11 @@ export default function LoginPage() {
                   <label htmlFor="password" className="block text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
                     Password
                   </label>
-                  <a href="#" className="text-[11px] text-muted-foreground/60 hover:text-foreground/70 transition-colors" id="forgot-password-link">
-                    Forgot?
-                  </a>
+                  {!isRegister && (
+                    <a href="#" className="text-[11px] text-muted-foreground/60 hover:text-foreground/70 transition-colors" id="forgot-password-link">
+                      Forgot?
+                    </a>
+                  )}
                 </div>
                 <div className="relative">
                   <Input
@@ -209,6 +243,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    minLength={isRegister ? 6 : undefined}
                     className="h-9 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground/40 focus-visible:border-primary/60 focus-visible:bg-accent focus-visible:ring-0 pr-10 text-[13px]"
                   />
                   <button
@@ -226,17 +261,17 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                id="signin-submit-btn"
+                id="auth-submit-btn"
                 className="w-full h-9 rounded-md bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2 hover:opacity-90 active:opacity-80 transition-all disabled:opacity-60 mt-2"
               >
                 {loading ? (
                   <>
                     <span className="w-3.5 h-3.5 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
-                    Signing in…
+                    {isRegister ? "Creating account…" : "Signing in…"}
                   </>
                 ) : (
                   <>
-                    Sign in
+                    {isRegister ? "Create account" : "Sign in"}
                     <ArrowRight className="w-3.5 h-3.5" />
                   </>
                 )}
@@ -251,15 +286,30 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Demo hint */}
-            <div className="mt-5 flex items-center gap-2 p-3 rounded-lg bg-muted/30 border border-border">
-              <ChevronRight className="w-3.5 h-3.5 text-primary/70 shrink-0" />
-              <p className="text-[11px] text-muted-foreground">
-                Demo credentials are pre-filled. Just hit <span className="text-foreground/60 font-medium">Sign in</span>.
-              </p>
-            </div>
+            {/* Demo hint — login mode only */}
+            {!isRegister && (
+              <div className="mt-5 flex items-center gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+                <ChevronRight className="w-3.5 h-3.5 text-primary/70 shrink-0" />
+                <p className="text-[11px] text-muted-foreground">
+                  Demo credentials are pre-filled. Just hit <span className="text-foreground/60 font-medium">Sign in</span>.
+                </p>
+              </div>
+            )}
 
-            <p className="text-center text-[11px] text-muted-foreground/50 mt-6">
+            {/* Mode toggle — mobile fallback */}
+            <p className="text-center text-[11px] text-muted-foreground/50 mt-6 sm:hidden">
+              {isRegister ? "Already have an account?" : "No account?"}{" "}
+              <button
+                type="button"
+                onClick={() => switchMode(!isRegister)}
+                className="underline hover:text-foreground/50 transition-colors"
+                id="auth-mode-toggle-mobile"
+              >
+                {isRegister ? "Sign in" : "Sign up"}
+              </button>
+            </p>
+
+            <p className="text-center text-[11px] text-muted-foreground/50 mt-4">
               By continuing you agree to our{" "}
               <a href="#" className="underline hover:text-foreground/50 transition-colors" id="terms-link">Terms</a>
               {" & "}
@@ -268,100 +318,14 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-
-      {/* ── Sign Up Dialog ── */}
-      <Dialog open={showSignUp} onOpenChange={setShowSignUp}>
-        <DialogContent className="sm:max-w-[400px] bg-[oklch(0.13_0.015_264)] border border-white/[0.08]">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-white">Create your account</DialogTitle>
-            <DialogDescription className="text-[13px] text-white/50">
-              Start managing your projects with TaskMatrix
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setSignUpLoading(true);
-              // Simulate API delay
-              await new Promise((r) => setTimeout(r, 1000));
-              // In demo mode, log in as the default user
-              const success = await login("alex@taskmatrix.io", "password123");
-              setSignUpLoading(false);
-              if (success) {
-                setShowSignUp(false);
-                router.push("/dashboard");
-              }
-            }}
-            className="space-y-4 mt-2"
-          >
-            <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-white/50 mb-1.5 block">
-                Full Name
-              </label>
-              <Input
-                type="text"
-                placeholder="Alex Morgan"
-                required
-                className="bg-white/[0.06] border-white/[0.08] text-white placeholder:text-white/25 h-10"
-                id="signup-name-input"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-white/50 mb-1.5 block">
-                Email Address
-              </label>
-              <Input
-                type="email"
-                placeholder="you@company.com"
-                required
-                className="bg-white/[0.06] border-white/[0.08] text-white placeholder:text-white/25 h-10"
-                id="signup-email-input"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-white/50 mb-1.5 block">
-                Password
-              </label>
-              <Input
-                type="password"
-                placeholder="Min. 8 characters"
-                required
-                minLength={8}
-                className="bg-white/[0.06] border-white/[0.08] text-white placeholder:text-white/25 h-10"
-                id="signup-password-input"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={signUpLoading}
-              className="w-full flex items-center justify-center gap-2 h-10 px-4 bg-primary text-primary-foreground text-[13px] font-semibold rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
-              id="signup-submit-btn"
-            >
-              {signUpLoading ? (
-                <>
-                  <span className="w-3.5 h-3.5 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
-                  Creating account…
-                </>
-              ) : (
-                <>
-                  Create account
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </>
-              )}
-            </button>
-            <p className="text-center text-[11px] text-white/30">
-              Already have an account?{" "}
-              <button
-                type="button"
-                onClick={() => setShowSignUp(false)}
-                className="text-primary hover:text-primary/80 font-medium transition-colors"
-              >
-                Sign in
-              </button>
-            </p>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   );
 }

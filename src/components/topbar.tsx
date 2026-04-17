@@ -16,6 +16,7 @@ import { Bell, Search, LogOut, User, Settings, ChevronDown } from "lucide-react"
 import { useRouter } from "next/navigation";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { useUnreadCount } from "@/store/notification-store";
+import { useAuthStore } from "@/store/auth-store";
 
 interface TopbarProps {
   mobileTrigger?: React.ReactNode;
@@ -26,6 +27,23 @@ export function Topbar({ mobileTrigger }: TopbarProps) {
   const bellRef = useRef<HTMLButtonElement>(null);
   const unread = useUnreadCount();
   const router = useRouter();
+
+  const storeUser = useAuthStore((s) => s.user);
+  const supabaseUser = useAuthStore((s) => s.supabaseUser);
+  const logout = useAuthStore((s) => s.logout);
+
+  // Derive display values: prefer app-level user, fall back to Supabase email
+  const displayName = storeUser?.name ?? supabaseUser?.email ?? "Account";
+  const displayEmail = storeUser?.email ?? supabaseUser?.email ?? "";
+  const displayInitials = storeUser?.initials
+    ?? (displayName !== "Account"
+      ? displayName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+      : "?");
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/");
+  };
 
   return (
     <header className="h-14 border-b border-border/60 bg-background/95 backdrop-blur-sm sticky top-0 z-50 flex items-center gap-3 px-4 shrink-0">
@@ -88,10 +106,10 @@ export function Topbar({ mobileTrigger }: TopbarProps) {
           >
             <Avatar className="h-6 w-6">
               <AvatarFallback className="text-[9px] font-bold bg-gradient-to-br from-primary to-violet-600 text-white">
-                AM
+                {displayInitials}
               </AvatarFallback>
             </Avatar>
-            <span className="text-[13px] font-medium hidden sm:block">Alex Morgan</span>
+            <span className="text-[13px] font-medium hidden sm:block">{displayName}</span>
             <ChevronDown className="w-3 h-3 text-muted-foreground hidden sm:block" strokeWidth={2} />
           </DropdownMenuTrigger>
 
@@ -100,12 +118,12 @@ export function Topbar({ mobileTrigger }: TopbarProps) {
               <div className="flex items-center gap-2.5">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-[10px] font-bold bg-gradient-to-br from-primary to-violet-600 text-white">
-                    AM
+                    {displayInitials}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="text-[13px] font-semibold leading-none">Alex Morgan</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">alex@taskmatrix.io</p>
+                  <p className="text-[13px] font-semibold leading-none">{displayName}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{displayEmail}</p>
                 </div>
               </div>
             </DropdownMenuLabel>
@@ -129,7 +147,7 @@ export function Topbar({ mobileTrigger }: TopbarProps) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
-              onSelect={() => router.push("/")}
+              onSelect={handleLogout}
               id="logout-menu-item"
             >
               <LogOut className="h-3.5 w-3.5" />

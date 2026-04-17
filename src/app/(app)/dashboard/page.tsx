@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useTasks } from "@/store/task-store";
 import { useProjects } from "@/store/project-store";
-import { useCurrentUser } from "@/store/auth-store";
+import { useCurrentUser, useSupabaseUser } from "@/store/auth-store";
 import { MOCK_USERS, MOCK_ACTIVITY } from "@/lib/data";
 
 /* ── Weekly bar data ─────────────────────────────────────────────────────── */
@@ -54,12 +54,32 @@ const statusColor: Record<string, string> = {
 export default function DashboardPage() {
   const tasks    = useTasks();
   const projects = useProjects();
-  const user     = useCurrentUser();
+  const user        = useCurrentUser();
+  const supaUser    = useSupabaseUser();
   const recentTasks = tasks.slice(0, 6);
 
-  const firstName = user?.name?.split(" ")[0] ?? "there";
+  // ── Derive display values from real auth data ────────────────────────────
+  // Priority: mock-matched User (has name/role/initials) → Supabase email → fallback
+  const displayName     = user?.name
+    ?? (supaUser?.email ? supaUser.email.split("@")[0] : null)
+    ?? "You";
+  const displayEmail    = user?.email    ?? supaUser?.email    ?? "";
+  const displayInitials = user?.initials
+    ?? displayName.slice(0, 2).toUpperCase();
+
+  const firstName = displayName.split(" ")[0];
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  // ── Build Team Workload list — real user first if not in mock data ────────
+  const isRealUserInMock = !!user; // user is only set if email matched MOCK_USERS
+  const workloadUsers: Array<{ id: string; name: string; initials: string; role: string }> = [
+    // Inject the real Supabase user at top if they have no mock entry
+    ...(!isRealUserInMock && supaUser
+      ? [{ id: supaUser.id, name: displayName, initials: displayInitials, role: "member" }]
+      : []),
+    ...MOCK_USERS,
+  ];
 
   return (
     <div className="space-y-5">
@@ -71,6 +91,7 @@ export default function DashboardPage() {
             {greeting}, {firstName} 👋
           </h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">
+            {displayEmail && <span className="text-muted-foreground/60">{displayEmail} · </span>}
             {tasks.filter(t => t.status === "done").length} of {tasks.length} tasks complete across {projects.length} projects.
           </p>
         </div>
@@ -331,19 +352,22 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-3">
-              {MOCK_USERS.map((user) => {
-                const userTasks = tasks.filter((t) => t.assignee.id === user.id);
+              {workloadUsers.map((u) => {
+                const userTasks = tasks.filter((t) => t.assignee.id === u.id);
                 const done = userTasks.filter((t) => t.status === "done").length;
                 const pct  = userTasks.length > 0 ? Math.round((done / userTasks.length) * 100) : 0;
-                const grad = ROLE_GRAD[user.role] ?? "from-primary to-violet-600";
+                const grad = ROLE_GRAD[(u as { role: string }).role] ?? "from-primary to-violet-600";
+                const isMe = u.id === supaUser?.id || u.id === user?.id;
                 return (
-                  <div key={user.id} className="flex items-center gap-2.5">
+                  <div key={u.id} className="flex items-center gap-2.5">
                     <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${grad} flex items-center justify-center text-[9px] font-bold text-white shrink-0`}>
-                      {user.initials}
+                      {u.initials}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[12px] font-medium truncate">{user.name.split(" ")[0]}</span>
+                        <span className="text-[12px] font-medium truncate">
+                          {u.name.split(" ")[0]}{isMe && <span className="ml-1 text-[10px] text-primary font-semibold">(you)</span>}
+                        </span>
                         <span className="text-[10px] text-muted-foreground/60 tabular-nums ml-2">{done}/{userTasks.length}</span>
                       </div>
                       <Progress value={pct} className="h-1" />
