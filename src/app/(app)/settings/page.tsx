@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle2, Eye, EyeOff, AlertTriangle, Upload } from "lucide-react";
+import { useAuthStore } from "@/store/auth-store";
+import { supabase } from "@/lib/supabase";
 
 /* ── Tiny toast hook ── */
 function useToast() {
@@ -64,11 +66,22 @@ function NotifRow({
 export default function SettingsPage() {
   const { msg: toast, show } = useToast();
 
-  /* Profile fields */
-  const [name,     setName]     = useState("Alex Morgan");
-  const [email,    setEmail]    = useState("alex@taskmatrix.io");
+  /* Pull real user from auth store */
+  const storeUser   = useAuthStore((s) => s.user);
+  const supaUser    = useAuthStore((s) => s.supabaseUser);
+  const updateProfile = useAuthStore((s) => s.updateProfile);
+
+  /* Profile fields — seeded from real auth data */
+  const [name,     setName]     = useState(storeUser?.name  ?? supaUser?.email?.split("@")[0] ?? "");
+  const [email,    setEmail]    = useState(supaUser?.email  ?? storeUser?.email ?? "");
   const [timezone, setTimezone] = useState("IST (UTC+5:30)");
   const [savingProfile, setSavingProfile] = useState(false);
+
+  /* Keep fields in sync if the store hydrates AFTER mount (Supabase session restore) */
+  useEffect(() => {
+    if (storeUser?.name  && name  === "") setName(storeUser.name);
+    if (supaUser?.email  && email === "") setEmail(supaUser.email);
+  }, [storeUser, supaUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Password fields */
   const [curPw,     setCurPw]     = useState("");
@@ -84,13 +97,23 @@ export default function SettingsPage() {
   const [savingWs, setSavingWs] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
+  /* Initials derived from current name field */
+  const initials = name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "?";
+
   /* ── Save handlers ── */
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingProfile(true);
-    await new Promise((r) => setTimeout(r, 600));
+    // Update Zustand store so topbar/dashboard reflect the new name immediately
+    updateProfile({ name, email });
+    await new Promise((r) => setTimeout(r, 400));
     setSavingProfile(false);
-    show("Profile saved successfully!");
+    show("Profile saved!");
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
@@ -99,8 +122,18 @@ export default function SettingsPage() {
     if (newPw.length < 8) return show("Password must be at least 8 characters.", "error");
     if (newPw !== confirmPw) return show("Passwords do not match.", "error");
     setSavingPw(true);
-    await new Promise((r) => setTimeout(r, 600));
+    // Re-authenticate first, then update password via Supabase
+    const { error: reAuthErr } = await supabase.auth.signInWithPassword({
+      email: supaUser?.email ?? email,
+      password: curPw,
+    });
+    if (reAuthErr) {
+      setSavingPw(false);
+      return show("Current password is incorrect.", "error");
+    }
+    const { error } = await supabase.auth.updateUser({ password: newPw });
     setSavingPw(false);
+    if (error) return show(error.message, "error");
     setCurPw(""); setNewPw(""); setConfirmPw("");
     show("Password updated successfully!");
   };
@@ -108,7 +141,7 @@ export default function SettingsPage() {
   const handleSaveWorkspace = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingWs(true);
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 400));
     setSavingWs(false);
     show("Workspace settings saved!");
   };
@@ -159,7 +192,7 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16">
                     <AvatarFallback className="text-xl font-bold bg-gradient-to-br from-primary to-violet-600 text-white">
-                      {name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                      {initials}
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -188,7 +221,12 @@ export default function SettingsPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="settings-role" className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Role</Label>
-                    <Input id="settings-role" defaultValue="Admin" disabled className="h-9 text-[13px] opacity-60" />
+                    <Input
+                      id="settings-role"
+                      defaultValue={storeUser?.role ? storeUser.role.charAt(0).toUpperCase() + storeUser.role.slice(1) : "Member"}
+                      disabled
+                      className="h-9 text-[13px] opacity-60"
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="settings-timezone" className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Timezone</Label>

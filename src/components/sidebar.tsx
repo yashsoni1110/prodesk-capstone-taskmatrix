@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { useCurrentUser } from "@/store/auth-store";
+import { useCurrentUser, useAuthStore } from "@/store/auth-store";
 import { useState } from "react";
 
 const navGroups = [
@@ -114,10 +114,13 @@ function SidebarLogo() {
 }
 
 function SidebarUserCard() {
-  const user = useCurrentUser();
-  const displayName = user?.name ?? "Guest";
-  const displayEmail = user?.email ?? "";
-  const displayInitials = user?.initials ?? "?";
+  const user      = useCurrentUser();
+  const supaUser  = useAuthStore((s) => s.supabaseUser);
+
+  const displayName     = user?.name     ?? supaUser?.email?.split("@")[0] ?? "...";
+  const displayEmail    = user?.email    ?? supaUser?.email    ?? "";
+  const displayInitials = user?.initials
+    ?? displayName.slice(0, 2).toUpperCase();
 
   return (
     <div className="px-2 pb-3 shrink-0">

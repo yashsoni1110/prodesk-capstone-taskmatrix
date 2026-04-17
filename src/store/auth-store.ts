@@ -106,6 +106,47 @@ function findMockUser(email: string): User | undefined {
   return MOCK_USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());
 }
 
+/**
+ * Build a full User object from a Supabase-authenticated user.
+ * Priority:
+ *   1. Exact email match in MOCK_USERS (preserves demo profiles: name, role, avatar)
+ *   2. Derive name from email — e.g. "john.doe@gmail.com" → "John Doe"
+ *      initials computed from the derived name.
+ *
+ * This ensures EVERY real registered user gets a proper display name and
+ * initials instead of showing "Guest" or "Account".
+ */
+function buildUserFromSupabase(
+  supaUser: { id: string; email?: string | null }
+): User {
+  const email = supaUser.email ?? "";
+  const mockMatch = findMockUser(email);
+  if (mockMatch) return mockMatch;
+
+  // Derive a human-readable name from the email local-part
+  // e.g. "john.doe" → "John Doe", "y4417546" → "Y4417546"
+  const localPart = email.split("@")[0] ?? "user";
+  const nameParts = localPart
+    .replace(/[._+\-]/g, " ")
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  const name = nameParts.join(" ") || email;
+  const initials = nameParts
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return {
+    id: supaUser.id,
+    name,
+    email,
+    avatar: "",
+    initials,
+    role: "developer", // default role for self-registered users
+  };
+}
+
 // ── Store ─────────────────────────────────────────────────────────────────────
 // No persist middleware — Supabase manages its own session in localStorage.
 // Zustand state always starts clean on both server and client, which
@@ -127,7 +168,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
       if (session?.user) {
         set({
           supabaseUser: toSupabaseUser(session.user),
-          user: findMockUser(session.user.email ?? "") ?? null,
+      user: buildUserFromSupabase(session.user),
           isAuthenticated: true,
           initialized: true,
           isLoading: false,
@@ -143,7 +184,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
         if (session?.user) {
           set({
             supabaseUser: toSupabaseUser(session.user),
-            user: findMockUser(session.user.email ?? "") ?? null,
+        user: buildUserFromSupabase(session.user),
             isAuthenticated: true,
             initialized: true,
             isLoading: false,
@@ -173,7 +214,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     if (!error && session?.user) {
       set({
         supabaseUser: toSupabaseUser(session.user),
-        user: findMockUser(session.user.email ?? "") ?? null,
+        user: buildUserFromSupabase(session.user),
         isAuthenticated: true,
         initialized: true,
         isLoading: false,
@@ -193,10 +234,9 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     });
 
     if (!error && data.user) {
-      const mockUser = findMockUser(email);
       set({
         supabaseUser: toSupabaseUser(data.user),
-        user: mockUser ?? null,
+        user: buildUserFromSupabase(data.user),
         isAuthenticated: true,
         initialized: true,
         isLoading: false,
@@ -205,7 +245,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
       return true;
     }
 
-    // Fallback: demo-only mock match (no real Supabase user required)
+    // Fallback: demo-only mock match (offline / Supabase unreachable)
     const mockUser = findMockUser(email);
     if (mockUser) {
       set({ user: mockUser, isAuthenticated: true, initialized: true, isLoading: false, lastError: null });
@@ -250,7 +290,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
     // Session available immediately (email confirmation disabled in Supabase)
     set({
       supabaseUser: toSupabaseUser(data.user),
-      user: findMockUser(email) ?? null,
+      user: buildUserFromSupabase(data.user),
       isAuthenticated: true,
       initialized: true,
       isLoading: false,
