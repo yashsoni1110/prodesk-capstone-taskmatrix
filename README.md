@@ -11,7 +11,8 @@
 [![Tailwind](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss)](https://tailwindcss.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Zustand](https://img.shields.io/badge/Zustand-5-brown)](https://zustand-demo.pmnd.rs/)
-[![Supabase](https://img.shields.io/badge/Supabase-Auth-3ECF8E?logo=supabase)](https://supabase.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-Auth%20%2B%20DB-3ECF8E?logo=supabase)](https://supabase.com/)
+[![Recharts](https://img.shields.io/badge/Recharts-2-22d3ee)](https://recharts.org/)
 [![Vercel](https://img.shields.io/badge/Deployed-Vercel-black?logo=vercel)](https://prodesk-capstone-taskmatrix.vercel.app)
 
 **🚀 Live Demo:** [prodesk-capstone-taskmatrix.vercel.app](https://prodesk-capstone-taskmatrix.vercel.app)
@@ -26,10 +27,10 @@
 2. [Track & Role](#-track--role)
 3. [Tech Stack](#-tech-stack)
 4. [Week 14 MVP — Auth & Routing](#-week-14-mvp--auth--routing)
-5. [Core Features](#-core-features)
-6. [UI Wireframes (Figma)](#-ui-wireframes)
-7. [State Architecture Diagram](#-state-architecture-diagram)
-8. [Mock API Endpoints](#-mock-api-endpoints)
+5. [Week 15 — Full CRUD & Analytics](#-week-15--full-crud--analytics)
+6. [Core Features](#-core-features)
+7. [UI Wireframes (Figma)](#-ui-wireframes)
+8. [State Architecture Diagram](#-state-architecture-diagram)
 9. [Data Models](#-data-models)
 10. [Folder Structure](#-folder-structure)
 11. [Development Timeline](#-development-timeline)
@@ -68,7 +69,7 @@
 | **Auth Strategy** | Supabase JS SDK v2 — localStorage session + client-side route guard |
 | **Data Strategy** | Real auth (Supabase) + Mock content data (Zustand stores) for MVP |
 
-> **Week 14 note:** Authentication is 100% real (Supabase). Content data (tasks, projects) remains mock for MVP, to be replaced with real Supabase tables in Week 15.
+> **Week 15:** Authentication is 100% real (Supabase). Task and Project data is now **persisted in Supabase** — full CRUD with Row Level Security enforcing ownership per user.
 
 ---
 
@@ -81,8 +82,9 @@
 | **Language** | TypeScript 5 | Type safety across the codebase |
 | **Styling** | Tailwind CSS 4 | Utility-first CSS framework |
 | **Component Library** | shadcn/ui (Radix primitives) | Accessible, themeable UI components |
-| **State Management** | Zustand 5 | Lightweight global state |
-| **Auth / BaaS** | Supabase JS SDK v2 | Real user registration, login, session management |
+| **State Management** | Zustand 5 | Lightweight global state with optimistic updates |
+| **Auth / BaaS** | Supabase JS SDK v2 | Real user registration, login, session + PostgreSQL database |
+| **Data Visualization** | Recharts 2 | AreaChart with gradient fills, status & priority breakdown |
 | **Drag & Drop** | @hello-pangea/dnd | Kanban card reordering & column moves |
 | **Icons** | Lucide React | Consistent, tree-shakeable icon set |
 | **Theming** | next-themes | Dark / Light mode toggle with system preference |
@@ -158,7 +160,86 @@ Supabase reads localStorage session
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://rvvkkgihfwgfjymgurwc.supabase.co
-NEXT_PUBLIC_SUPABASE_KEY=your_publishable_key_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_publishable_key_here
+```
+
+---
+
+## ✅ Week 15 — Full CRUD & Analytics
+
+Week 15 connects every button to the real Supabase database and adds data visualization.
+
+### Milestone 1 — Create & Read ✅
+
+| Feature | Implementation |
+|---|---|
+| Fetch tasks on login | `fetchTasksFromDB(userId)` → `SELECT * FROM tasks WHERE user_id = :uid` |
+| Fetch projects on login | `fetchProjectsFromDB(userId)` → `SELECT * FROM projects WHERE user_id = :uid` |
+| Create new task | `NewTaskDialog` → `createTaskInDB()` → `INSERT INTO tasks` |
+| Create new project | `NewProjectDialog` → `createProjectInDB()` → `INSERT INTO projects` |
+| Instant UI update | Zustand optimistic update — store updates before DB call resolves |
+| Sidebar counts live | Tasks & Projects badge numbers read from Zustand store in real time |
+
+### Milestone 2 — Update & Delete ✅
+
+| Feature | Implementation |
+|---|---|
+| Edit task (pre-filled modal) | `EditTaskDialog` — fields synced from task object via `useEffect` |
+| Save task edits | `updateTaskInDB()` — PATCH (only changed fields sent) |
+| Edit project (pre-filled modal) | `EditProjectDialog` — name, description, color, due date pre-filled |
+| Save project edits | `updateProjectInDB()` — PATCH |
+| Delete with confirmation | `ConfirmDeleteDialog` — "Are you sure?" prompt before any delete |
+| Delete task from DB | `deleteTaskFromDB(taskId)` → `DELETE FROM tasks WHERE id = :id` |
+| Delete project from DB | `deleteProjectFromDB(projectId)` → `DELETE FROM projects WHERE id = :id` |
+| Instant removal (no refresh) | `tasks.filter(t => t.id !== id)` in Zustand store |
+
+### Milestone 3 — Analytics ✅
+
+| Feature | Implementation |
+|---|---|
+| Chart library | **Recharts** — `AreaChart` with gradient fills |
+| Tasks by day of week | Mon–Sun buckets computed with `.reduce()` from real task `createdAt` |
+| Status distribution | Stacked horizontal bar — Done / In Progress / Review / To Do / Backlog |
+| Priority breakdown | 4 mini cards — Critical / High / Medium / Low counts |
+| KPI strip | Completion %, Active tasks, Total tasks — all live from Zustand |
+
+### Supabase Schema
+
+```sql
+-- tasks table
+create table tasks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  title text not null,
+  description text default '',
+  status text default 'todo',
+  priority text default 'medium',
+  project_id uuid,
+  due_date date,
+  tags text[] default '{}',
+  assignee_name text default 'You',
+  assignee_initials text default 'YO',
+  assignee_role text default 'developer',
+  created_at timestamptz default now()
+);
+
+-- projects table
+create table projects (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  name text not null,
+  description text default '',
+  color text default '#7c3aed',
+  progress integer default 0,
+  due_date date,
+  created_at timestamptz default now()
+);
+
+-- Row Level Security (ownership)
+alter table tasks    enable row level security;
+alter table projects enable row level security;
+create policy "tasks_own"    on tasks    for all using (auth.uid() = user_id);
+create policy "projects_own" on projects for all using (auth.uid() = user_id);
 ```
 
 ---
@@ -176,9 +257,11 @@ NEXT_PUBLIC_SUPABASE_KEY=your_publishable_key_here
 - [x] Role-based user model: `admin`, `manager`, `developer`, `designer`
 
 ### 📊 Dashboard
-- [x] **4 stat cards** — Total Tasks, In Progress, Completed, Team Members (live from store)
+- [x] **3 stat cards** — Total Tasks, Completed, Pending (all live from Zustand — update instantly on CRUD)
 - [x] Personalized greeting: `"Good morning, [FirstName] 👋"`
-- [x] Project overview cards with progress bars (clickable → opens Kanban)
+- [x] Subtitle: "X of Y tasks complete across Z projects" — live counts
+- [x] **Task Analytics chart** (Recharts AreaChart) — Tasks by day, status %, priority grid
+- [x] Project overview cards with progress bars
 - [x] Real-time activity feed
 - [x] Quick-action buttons (New Task, New Project)
 
@@ -187,19 +270,27 @@ NEXT_PUBLIC_SUPABASE_KEY=your_publishable_key_here
 - [x] **Drag-and-drop** task cards between columns and within columns
 - [x] Task cards showing: title, priority badge, assignee avatar, due date, tags
 - [x] Color-coded priority levels: `Critical` (red), `High` (orange), `Medium` (yellow), `Low` (slate)
-- [x] Create, edit, and delete tasks via dialog
+- [x] **Create** tasks via `NewTaskDialog` — persists to Supabase, instant UI update
+- [x] **Edit** tasks via `EditTaskDialog` — pre-filled modal, PATCH to Supabase
+- [x] **Delete** tasks with confirmation dialog — removed from DB and UI
+- [x] Sidebar Tasks badge updates live when tasks are added/deleted
 
 ### 📁 Projects Management
-- [x] Projects grid with color indicators, progress bars, member avatars
-- [x] **Full card click** navigates to the Kanban board
-- [x] Create new projects (name, description, color, due date, custom team members)
-- [x] Free-text member input — logged-in user pre-added, type any name to add more
-- [x] Delete projects via dropdown menu
+- [x] Projects grid with color accent bars, progress bars, member avatars
+- [x] **Click card body** navigates to Kanban board
+- [x] **⋯ menu** — Edit project (pre-filled dialog), Delete project (confirm dialog)
+- [x] **Create** new projects (name, description, color, due date, custom team members)
+- [x] **Edit** project name, description, color, due date — persists to Supabase
+- [x] **Delete** project with confirmation — removed from DB and UI instantly
+- [x] Due date formatted as "May 30, 2025" (not raw ISO)
+- [x] Sidebar Projects badge updates live when projects are added/deleted
 
 ### 👥 Team Management
 - [x] **Real users** — new registered accounts see only themselves (no fake team)
 - [x] **Mock demo users** shown only when logged in as alex@taskmatrix.io
 - [x] **Invite Member dialog** — name + email form, invited member appears immediately
+- [x] **Edit Member** — update name, role, email via edit dialog
+- [x] **Remove Member** — confirmation dialog, removed from team list
 - [x] Search team by name, role, or email
 - [x] Per-member workload stats (done, active, critical tasks)
 
@@ -270,19 +361,19 @@ Zustand Global State
 │   └── Actions: login(), logout(), register(),
 │                initializeAuth(), updateProfile()
 │
-├── TaskStore                           ← Mock data (Week 15: real Supabase)
+├── TaskStore                           ← REAL (Supabase Week 15 ✅)
 │   ├── tasks: Task[]
 │   └── Actions: addTask(), updateTask(), deleteTask(),
-│                moveTask(), reorderTasks()
+│                moveTask(), reorderTasks(), fetchTasks()
 │
-├── ProjectStore                        ← Mock data (Week 15: real Supabase)
+├── ProjectStore                        ← REAL (Supabase Week 15 ✅)
 │   ├── projects: Project[]
 │   └── Actions: addProject(), updateProject(), deleteProject(),
-│                addMember(), removeMember()
+│                fetchProjects()
 │
-├── TeamStore                           ← Real invited members stored here
+├── TeamStore                           ← Session-only (invited members)
 │   ├── invitedMembers: User[]
-│   └── Actions: inviteMember(), removeMember(), clearInvited()
+│   └── Actions: inviteMember(), updateMember(), removeMember()
 │
 └── NotificationStore
     ├── notifications: Notification[]
@@ -456,7 +547,7 @@ prodesk-capstone-taskmatrix/
 |---|---|---|---|
 | **Week 13** | 📐 Planning & Design | ✅ Done | PRD (README), Wireframes, State Architecture Diagram |
 | **Week 14** | 🏗 MVP / Walking Skeleton | ✅ Done | Supabase auth, protected routes, real user profile, deployed to Vercel |
-| **Week 15** | ✅ Real CRUD Features | 🔜 Next | Connect tasks/projects to Supabase tables, real team management |
+| **Week 15** | ✅ Full CRUD & Analytics | ✅ Done | Supabase tasks/projects tables, full Create/Read/Update/Delete, Recharts analytics, live sidebar counts, edit/delete with confirmation dialogs |
 | **Week 16** | 🤖 AI & Polish | 🔜 Upcoming | AI task suggestions, animations, profile photos |
 | **Week 17** | 🚀 Final Deployment | 🔜 Upcoming | Final QA, demo video, presentation |
 
@@ -509,7 +600,7 @@ Open [http://localhost:3000](http://localhost:3000) — register a new account o
 
 <div align="center">
 
-**Built with ❤️ as a Capstone Project — Week 14 MVP Complete**
+**Built with ❤️ as a Capstone Project — Week 15 CRUD Complete**
 
 *TaskMatrix — Ship faster with clarity.*
 

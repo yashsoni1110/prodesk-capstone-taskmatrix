@@ -237,3 +237,151 @@ These are the AI prompts I used for help while building TaskMatrix, ordered from
 
 ---
 
+## 🗄️ Week 15 — Full CRUD & Supabase Database
+
+### 33. Supabase database helpers for tasks
+
+> I need a db-tasks.ts file that contains 4 functions wrapping Supabase queries:
+> - `fetchTasksFromDB(userId)` — SELECT * FROM tasks WHERE user_id = userId ORDER BY created_at
+> - `createTaskInDB(userId, task)` — INSERT and return the generated UUID
+> - `updateTaskInDB(taskId, changes)` — PATCH only the fields that are provided (not undefined)
+> - `deleteTaskFromDB(taskId)` — DELETE WHERE id = taskId
+> Also need a `rowToTask()` mapper function that converts the Supabase row shape to my frontend Task interface (snake_case → camelCase).
+
+---
+
+### 34. Supabase database helpers for projects
+
+> Same pattern as db-tasks.ts but for projects. I need db-projects.ts with:
+> - `fetchProjectsFromDB(userId)` — SELECT * FROM projects WHERE user_id = userId
+> - `createProjectInDB(userId, project)` — INSERT and return UUID
+> - `updateProjectInDB(projectId, changes)` — PATCH only changed fields
+> - `deleteProjectFromDB(projectId)` — DELETE
+> Include a `rowToProject()` mapper. The project table has: id, user_id, name, description, color, progress, due_date, created_at.
+
+---
+
+### 35. Connecting Zustand task store to Supabase
+
+> I have db-tasks.ts with 4 database functions. Now I need to update my Zustand task-store.ts to call them. Add a `fetchTasks(userId)` action that calls fetchTasksFromDB and sets the tasks array. Update `addTask()` to call createTaskInDB and replace the temp ID with the DB-generated UUID. Update `updateTask()` to call updateTaskInDB in the background. Update `deleteTask()` to call deleteTaskFromDB. The UI should update optimistically (before DB call) for the best UX.
+
+---
+
+### 36. Connecting Zustand project store to Supabase
+
+> Same as task store but for projects. Update project-store.ts to add `fetchProjects(userId)`, and wire addProject / updateProject / deleteProject to call the corresponding db-projects.ts functions. Use optimistic updates so the UI updates instantly without waiting for Supabase to respond.
+
+---
+
+### 37. Edit Project dialog with pre-filled form
+
+> Build an EditProjectDialog component using shadcn/ui Dialog. It should:
+> - Accept a `project: Project | null` prop
+> - Use useEffect to pre-fill name, description, color, dueDate whenever the project prop changes
+> - Show a color picker grid (8 preset colors) and a date input
+> - On submit, call updateProject() from the project store and close the dialog
+> - The parent passes `editProject` state and `setEditProject(null)` as close handler
+
+---
+
+### 38. Edit Task dialog with pre-filled form
+
+> Build an EditTaskDialog component similar to NewTaskDialog but for editing. It should:
+> - Accept `task: Task | null` prop
+> - Pre-fill all fields (title, description, status, priority, dueDate, tags) from the task object
+> - Use the same form layout as NewTaskDialog
+> - On submit, call updateTask(task.id, changes) from task store
+> - Tags input should allow adding/removing tags as chips
+
+---
+
+### 39. Reusable ConfirmDeleteDialog component
+
+> I need a reusable confirmation dialog for delete operations. It should:
+> - Accept `open`, `onClose`, `onConfirm`, `title`, `description` props
+> - Show a warning icon, customizable title and description text
+> - Have a Cancel button and a red "Delete" button
+> - Show a loading spinner on the Delete button while `onConfirm` is awaiting
+> - Work for both task and project deletions
+
+---
+
+### 40. Project card dropdown menu — Edit and Delete
+
+> My project cards on /projects need a ⋯ (MoreHorizontal) dropdown menu. The menu should have:
+> - "Open Board" → router.push("/kanban")
+> - "Edit project…" → sets editProject state to open EditProjectDialog
+> - "Delete project…" → sets confirmDeleteId to open ConfirmDeleteDialog
+> The key challenge: the card itself also navigates on click. I need the dropdown area to stopPropagation so clicking Edit/Delete doesn't also navigate. Wrap the entire badge+dropdown div in onClick stopPropagation.
+
+---
+
+### 41. Team member Edit and Remove with dropdown menu
+
+> Update my team page to add a per-member ⋯ dropdown menu with:
+> - "Edit member" → opens EditMemberDialog with pre-filled name, role, email fields
+> - "Remove member" → opens ConfirmDeleteDialog before removing
+> The EditMemberDialog should call `updateMember(id, { name, role, email })` from team-store. Add an `updateMember` action to the team store. Admin users cannot be removed (hide remove option or disable it).
+
+---
+
+### 42. Live sidebar badge counts from Zustand stores
+
+> The sidebar navigation shows hardcoded badge counts (Tasks: "11", Projects: "4"). These never update when I add or delete items. Fix this by:
+> - Moving navGroups array INSIDE the NavLinks component (not a module-level constant)
+> - Calling useTasks().length and useProjects().length inside NavLinks
+> - Setting badge: taskCount > 0 ? String(taskCount) : undefined
+> This makes the badges reactive — they update instantly when the Zustand stores change.
+
+---
+
+### 43. Analytics chart with Recharts AreaChart
+
+> Build an AnalyticsChart component using Recharts. It should show:
+> 1. An AreaChart with gradient fills showing tasks by day of week (Mon-Sun). Use .reduce() to bucket tasks by their createdAt day. Show 3 areas: total, in-progress (violet), done (green).
+> 2. A status distribution section showing % of tasks in each status as colored progress bars.
+> 3. A priority breakdown grid with 4 mini cards: Critical, High, Medium, Low — each showing the count.
+> Use the Recharts ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip components. Add gradient defs for each area fill.
+
+---
+
+### 44. Fix project card date format
+
+> My project cards show the raw ISO date "2025-05-30" in the footer. I want it to show "Due May 30, 2025" instead. Fix the template literal to use:
+> ```tsx
+> project.dueDate
+>   ? `Due ${new Date(project.dueDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+>   : "No due date"
+> ```
+
+---
+
+### 45. Make project card ⋯ menu button discoverable
+
+> The ⋯ menu trigger on project cards uses `opacity-0 group-hover:opacity-100` which makes it completely invisible until hover. This makes it hard for users to discover. Change it to `opacity-30 group-hover:opacity-100` so there's always a faint hint of the button, and it becomes fully visible on hover.
+
+---
+
+### 46. Kill stuck Next.js dev server and restart cleanly
+
+> My terminal shows "Another next dev server is already running on port 3000 with PID 21320". How do I kill it and restart? On Windows PowerShell:
+> ```powershell
+> Stop-Process -Id 21320 -Force -ErrorAction SilentlyContinue
+> Start-Sleep 2
+> npm run dev
+> ```
+> Or to kill ALL node processes: `taskkill /F /IM node.exe`
+
+---
+
+### 47. Commit and deploy all Week 15 changes to Vercel
+
+> I've finished all my Week 15 CRUD features. How do I commit everything and deploy to Vercel?
+> ```bash
+> git add .
+> git commit -m "feat(week15): full CRUD with Supabase, Recharts analytics, live sidebar counts"
+> git push
+> ```
+> If Vercel is connected to GitHub it auto-deploys on push. For first-time setup: run `vercel --prod` or go to vercel.com/new and import the GitHub repo. Remember to add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY as environment variables in the Vercel dashboard.
+
+---
