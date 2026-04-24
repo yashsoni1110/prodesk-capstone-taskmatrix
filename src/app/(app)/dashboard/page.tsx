@@ -1,5 +1,7 @@
 "use client";
 
+
+import { useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -8,26 +10,21 @@ import { Progress } from "@/components/ui/progress";
 import { PriorityBadge } from "@/components/task-badges";
 import { NewTaskDialog } from "@/components/new-task-dialog";
 import { LiveDashboardStats } from "@/components/live-dashboard-stats";
+import { AnalyticsChart } from "@/components/analytics-chart";
 import {
   Clock, ArrowRight, MessageSquare,
   FolderKanban, Plus, ArrowUpRight, ExternalLink,
 } from "lucide-react";
 import { useTasks } from "@/store/task-store";
+import { useTaskActions } from "@/store/task-store";
 import { useProjects } from "@/store/project-store";
+import { useProjectActions } from "@/store/project-store";
 import { useCurrentUser, useSupabaseUser } from "@/store/auth-store";
 import { MOCK_USERS, MOCK_ACTIVITY } from "@/lib/data";
 
-/* ── Weekly bar data ─────────────────────────────────────────────────────── */
-const weekBars = [
-  { day: "Mon", done: 3, total: 5 },
-  { day: "Tue", done: 5, total: 7 },
-  { day: "Wed", done: 2, total: 4 },
-  { day: "Thu", done: 6, total: 6 },
-  { day: "Fri", done: 4, total: 8 },
-  { day: "Sat", done: 1, total: 2 },
-  { day: "Sun", done: 0, total: 1 },
-];
-const maxTotal = Math.max(...weekBars.map((b) => b.total));
+
+/* ── Removed static weekBars — replaced by AnalyticsChart (Recharts) ──────── */
+
 
 const activityDotColor: Record<string, string> = {
   task:    "bg-violet-500",
@@ -56,7 +53,18 @@ export default function DashboardPage() {
   const projects = useProjects();
   const user        = useCurrentUser();
   const supaUser    = useSupabaseUser();
+  const { fetchTasks }    = useTaskActions();
+  const { fetchProjects } = useProjectActions();
   const recentTasks = tasks.slice(0, 6);
+
+  // Fetch real data from Supabase on mount
+  useEffect(() => {
+    if (supaUser?.id) {
+      fetchTasks(supaUser.id);
+      fetchProjects(supaUser.id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supaUser?.id]);
 
   // ── Derive display values from real auth data ────────────────────────────
   // Priority: mock-matched User (has name/role/initials) → Supabase email → fallback
@@ -116,47 +124,8 @@ export default function DashboardPage() {
         {/* ── Left column ── */}
         <div className="space-y-5">
 
-          {/* Weekly bar chart */}
-          <Card className="border-border/60">
-            <CardHeader className="px-5 pt-5 pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-[13px] font-semibold">Weekly Completion</CardTitle>
-                <span className="text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-md">This week</span>
-              </div>
-            </CardHeader>
-            <CardContent className="px-5 pb-5">
-              <div className="flex items-end gap-1.5 h-24">
-                {weekBars.map(({ day, done, total }) => {
-                  const totalH = Math.round((total / maxTotal) * 100);
-                  const doneH  = total > 0 ? Math.round((done / total) * 100) : 0;
-                  return (
-                    <div key={day} className="flex-1 flex flex-col items-center gap-1.5">
-                      <div className="w-full flex flex-col justify-end" style={{ height: "80px" }}>
-                        <div
-                          className="relative w-full rounded-sm overflow-hidden bg-muted/70"
-                          style={{ height: `${totalH}%`, minHeight: 4 }}
-                        >
-                          <div
-                            className="absolute bottom-0 left-0 right-0 bg-primary rounded-sm transition-all"
-                            style={{ height: `${doneH}%` }}
-                          />
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground/60 font-medium">{day}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex items-center gap-4 mt-3 text-[11px] text-muted-foreground/70">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-sm bg-primary inline-block" />Completed
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-sm bg-muted-foreground/20 inline-block" />Total
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Analytics Chart (Recharts) */}
+          <AnalyticsChart />
 
           {/* Recent Tasks table */}
           <Card className="border-border/60">

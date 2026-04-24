@@ -9,13 +9,19 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import {
+  DropdownMenu, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   UserPlus, CheckCircle2, Clock, AlertCircle,
-  Search, Mail, Shield,
+  Search, Mail, Shield, MoreHorizontal, Pencil, Trash2,
 } from "lucide-react";
 import { useTasks } from "@/store/task-store";
 import { useAuthStore } from "@/store/auth-store";
-import { useInvitedMembers } from "@/store/team-store";
+import { useInvitedMembers, useTeamStore } from "@/store/team-store";
 import { InviteMemberDialog } from "@/components/invite-member-dialog";
+import { EditMemberDialog } from "@/components/edit-member-dialog";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { MOCK_USERS } from "@/lib/data";
 import type { User } from "@/lib/data";
 
@@ -28,16 +34,15 @@ const ROLE_STYLES: Record<string, { badge: string; grad: string }> = {
 };
 
 export default function TeamPage() {
-  const tasks        = useTasks();
-  const storeUser     = useAuthStore((s) => s.user);
+  const tasks          = useTasks();
+  const storeUser      = useAuthStore((s) => s.user);
   const invitedMembers = useInvitedMembers();
-  const [search, setSearch] = useState("");
+  const removeMember   = useTeamStore((s) => s.removeMember);
+  const [search,        setSearch]        = useState("");
+  const [editMember,    setEditMember]    = useState<User | null>(null);
+  const [deleteMemberId, setDeleteMemberId] = useState<string | null>(null);
+  const [isDeleting,    setIsDeleting]    = useState(false);
 
-  /**
-   * Decide which team roster to show:
-   * - Mock users → full 5-person demo team + any invited
-   * - Real new users → just themselves + invited members
-   */
   const isMockUser = storeUser
     ? MOCK_USERS.some((u) => u.id === storeUser.id)
     : false;
@@ -57,6 +62,19 @@ export default function TeamPage() {
   /* ── Summary stats ── */
   const totalTasks = tasks.length;
   const doneTasks  = tasks.filter((t) => t.status === "done").length;
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteMemberId) return;
+    setIsDeleting(true);
+    await new Promise((r) => setTimeout(r, 400));
+    removeMember(deleteMemberId);
+    setIsDeleting(false);
+    setDeleteMemberId(null);
+  };
+
+  /* Is this member an invited (editable) one? */
+  const isInvited = (userId: string) =>
+    invitedMembers.some((m) => m.id === userId);
 
   return (
     <div className="space-y-6 max-w-[1000px]">
@@ -108,6 +126,7 @@ export default function TeamPage() {
           const critical   = userTasks.filter((t) => t.priority === "critical").length;
           const pct        = userTasks.length > 0 ? Math.round((done / userTasks.length) * 100) : 0;
           const style      = ROLE_STYLES[user.role] ?? ROLE_STYLES.member;
+          const canEdit    = isInvited(user.id);
 
           return (
             <Card key={user.id} id={`team-member-${user.id}`} className="border-border/50 hover:border-border transition-colors group">
@@ -132,10 +151,15 @@ export default function TeamPage() {
                       >
                         {user.role}
                       </Badge>
+                      {canEdit && (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground border-dashed">
+                          invited
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 mt-0.5">
                       <Mail className="w-3 h-3 text-muted-foreground" />
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                      <p className="text-xs text-muted-foreground">{user.email || "—"}</p>
                     </div>
 
                     {/* Workload progress */}
@@ -175,14 +199,46 @@ export default function TeamPage() {
                     </div>
                   </div>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity"
-                    id={`view-${user.id}-btn`}
-                  >
-                    View Profile
-                  </Button>
+                  {/* Action menu — only for invited members */}
+                  {canEdit ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          id={`member-menu-${user.id}`}
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuItem
+                          onSelect={() => setEditMember(user)}
+                          id={`edit-member-${user.id}`}
+                        >
+                          <Pencil className="w-3.5 h-3.5 mr-2" /> Edit member
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={() => setDeleteMemberId(user.id)}
+                          id={`delete-member-${user.id}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-2" /> Remove…
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity"
+                      id={`view-${user.id}-btn`}
+                    >
+                      View Profile
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -211,6 +267,25 @@ export default function TeamPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Member Dialog */}
+      {editMember && (
+        <EditMemberDialog
+          member={editMember}
+          open={!!editMember}
+          onClose={() => setEditMember(null)}
+        />
+      )}
+
+      {/* Delete Member Confirmation */}
+      <ConfirmDeleteDialog
+        open={!!deleteMemberId}
+        onClose={() => setDeleteMemberId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Remove Member"
+        description="This member will be removed from your team. This action cannot be undone."
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

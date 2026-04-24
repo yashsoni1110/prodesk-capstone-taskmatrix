@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { MOCK_TASKS, MOCK_USERS } from "@/lib/data";
 import type { Task, TaskStatus, Priority } from "@/lib/data";
+import {
+  fetchTasksFromDB,
+  createTaskInDB,
+  updateTaskInDB,
+  deleteTaskFromDB,
+} from "@/lib/db-tasks";
 
 // ── Input type for creating a new task ────────────────────────────────────────
 export interface NewTaskInput {
@@ -19,159 +25,183 @@ export type UpdateTaskInput = Partial<Omit<Task, "id" | "createdAt">>;
 
 // ── Store shape ───────────────────────────────────────────────────────────────
 export interface TaskStore {
-  /** Flat list of all tasks */
   tasks: Task[];
+  isLoading: boolean;
+  isSaving: boolean;
 
-  // ── CRUD actions ────────────────────────────────────────────────────────────
+  // ── CRUD actions ─────────────────────────────────────────────────────────────
+
+  /** Fetch tasks from Supabase for the given user. */
+  fetchTasks: (userId: string) => Promise<void>;
 
   /**
    * Add a brand-new task.
-   * Generates a unique id and createdAt automatically.
+   * Pass userId to also persist to Supabase in the background.
    */
-  addTask: (input: NewTaskInput) => Task;
+  addTask: (input: NewTaskInput, userId?: string) => Task;
 
   /**
    * Partially update fields on an existing task by id.
-   * Returns true if the task was found and updated, false otherwise.
+   * Also syncs to Supabase in the background.
    */
   updateTask: (id: string, changes: UpdateTaskInput) => boolean;
 
   /**
    * Remove a task by id.
-   * Returns true if found and deleted, false otherwise.
+   * Also deletes from Supabase in the background.
    */
   deleteTask: (id: string) => boolean;
 
-  // ── Convenience helpers ───────────────────────────────────────────────────
+  // ── Convenience helpers ──────────────────────────────────────────────────────
 
-  /** Move a task to a different status column. */
   moveTask: (id: string, status: TaskStatus) => void;
-
-  /** Reorder tasks within a column after a drag-and-drop. */
   reorderTasks: (
     columnId: TaskStatus,
     sourceIndex: number,
     destinationIndex: number
   ) => void;
-
-  /** Get tasks belonging to a specific status column. */
   getByStatus: (status: TaskStatus) => Task[];
-
-  /** Wipe all tasks and reload from mock data (useful for dev/reset). */
   resetToMock: () => void;
 }
 
-// ── Counter for generating unique ids (survives store resets inside session) ──
+// ── Counter for generating local temp ids ─────────────────────────────────────
 let _idCounter = MOCK_TASKS.length + 1;
-
 function nextId(): string {
   return `t${_idCounter++}`;
 }
 
-// ── Store (no persist/devtools — avoids SSR hydration mismatch) ───────────────
-export const useTaskStore = create<TaskStore>()(
-  (set, get) => ({
-    tasks: MOCK_TASKS,
+// ── Store ─────────────────────────────────────────────────────────────────────
+export const useTaskStore = create<TaskStore>()((set, get) => ({
+  tasks: MOCK_TASKS,
+  isLoading: false,
+  isSaving: false,
 
-    addTask(input) {
-      const assignee =
-        MOCK_USERS.find((u) => u.id === (input.assigneeId ?? "u1")) ??
-        MOCK_USERS[0];
+  // ── fetchTasks ───────────────────────────────────────────────────────────────
+  async fetchTasks(userId) {
+    set({ isLoading: true });
+    const remote = await fetchTasksFromDB(userId);
+    if (remote.length > 0) {
+      set({ tasks: remote, isLoading: false });
+    } else {
+      // No data in Supabase yet — keep mock data so UI is never blank
+      set({ isLoading: false });
+    }
+  },
 
-      const newTask: Task = {
-        id: nextId(),
-        title: input.title,
-        description: input.description ?? "",
-        status: input.status ?? "todo",
-        priority: input.priority ?? "medium",
-        assignee,
-        projectId: input.projectId ?? "p1",
-        dueDate:
-          input.dueDate ??
-          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split("T")[0],
-        tags: input.tags ?? [],
-        createdAt: new Date().toISOString().split("T")[0],
-        comments: 0,
-        attachments: 0,
-      };
+  // ── addTask ──────────────────────────────────────────────────────────────────
+  addTask(input, userId) {
+    const assignee =
+      MOCK_USERS.find((u) => u.id === (input.assigneeId ?? "u1")) ??
+      MOCK_USERS[0];
 
-      set((state) => ({ tasks: [...state.tasks, newTask] }));
-      return newTask;
-    },
+    const newTask: Task = {
+      id: nextId(),
+      title: input.title,
+      description: input.description ?? "",
+      status: input.status ?? "todo",
+      priority: input.priority ?? "medium",
+      assignee,
+      projectId: input.projectId ?? "p1",
+      dueDate:
+        input.dueDate ??
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+      tags: input.tags ?? [],
+      createdAt: new Date().toISOString().split("T")[0],
+      comments: 0,
+      attachments: 0,
+    };
 
-    updateTask(id, changes) {
-      let found = false;
-      set((state) => {
-        const nextTasks = state.tasks.map((t) => {
-          if (t.id !== id) return t;
-          found = true;
-          const resolvedAssignee =
-            (changes as { assigneeId?: string }).assigneeId
-              ? MOCK_USERS.find(
-                  (u) =>
-                    u.id === (changes as { assigneeId?: string }).assigneeId
-                ) ?? t.assignee
-              : changes.assignee ?? t.assignee;
-          return { ...t, ...changes, assignee: resolvedAssignee };
-        });
-        return { tasks: nextTasks };
+    set((state) => ({ tasks: [...state.tasks, newTask] }));
+
+    // Persist to Supabase in the background (non-blocking)
+    if (userId) {
+      createTaskInDB(userId, newTask).catch(() => {
+        // silently fail — user still sees the local state
       });
-      return found;
-    },
+    }
 
-    deleteTask(id) {
-      const exists = get().tasks.some((t) => t.id === id);
-      if (!exists) return false;
-      set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) }));
-      return true;
-    },
+    return newTask;
+  },
 
-    moveTask(id, status) {
-      get().updateTask(id, { status });
-    },
-
-    reorderTasks(columnId, sourceIndex, destinationIndex) {
-      set((state) => {
-        const columnTasks = state.tasks
-          .filter((t) => t.status === columnId)
-          .slice();
-        const otherTasks = state.tasks.filter((t) => t.status !== columnId);
-        const [moved] = columnTasks.splice(sourceIndex, 1);
-        columnTasks.splice(destinationIndex, 0, moved);
-        return { tasks: [...otherTasks, ...columnTasks] };
+  // ── updateTask ───────────────────────────────────────────────────────────────
+  updateTask(id, changes) {
+    let found = false;
+    set((state) => {
+      const nextTasks = state.tasks.map((t) => {
+        if (t.id !== id) return t;
+        found = true;
+        const resolvedAssignee =
+          (changes as { assigneeId?: string }).assigneeId
+            ? MOCK_USERS.find(
+                (u) =>
+                  u.id === (changes as { assigneeId?: string }).assigneeId
+              ) ?? t.assignee
+            : changes.assignee ?? t.assignee;
+        return { ...t, ...changes, assignee: resolvedAssignee };
       });
-    },
+      return { tasks: nextTasks };
+    });
 
-    getByStatus(status) {
-      return get().tasks.filter((t) => t.status === status);
-    },
+    // Persist to Supabase in the background
+    if (found) {
+      updateTaskInDB(id, changes as Partial<Task>).catch(() => {});
+    }
 
-    resetToMock() {
-      set({ tasks: MOCK_TASKS });
-    },
-  })
-);
+    return found;
+  },
+
+  // ── deleteTask ───────────────────────────────────────────────────────────────
+  deleteTask(id) {
+    const exists = get().tasks.some((t) => t.id === id);
+    if (!exists) return false;
+    set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) }));
+
+    // Persist to Supabase in the background
+    deleteTaskFromDB(id).catch(() => {});
+
+    return true;
+  },
+
+  // ── moveTask ─────────────────────────────────────────────────────────────────
+  moveTask(id, status) {
+    get().updateTask(id, { status });
+  },
+
+  // ── reorderTasks ─────────────────────────────────────────────────────────────
+  reorderTasks(columnId, sourceIndex, destinationIndex) {
+    set((state) => {
+      const columnTasks = state.tasks
+        .filter((t) => t.status === columnId)
+        .slice();
+      const otherTasks = state.tasks.filter((t) => t.status !== columnId);
+      const [moved] = columnTasks.splice(sourceIndex, 1);
+      columnTasks.splice(destinationIndex, 0, moved);
+      return { tasks: [...otherTasks, ...columnTasks] };
+    });
+  },
+
+  // ── getByStatus ──────────────────────────────────────────────────────────────
+  getByStatus(status) {
+    return get().tasks.filter((t) => t.status === status);
+  },
+
+  // ── resetToMock ──────────────────────────────────────────────────────────────
+  resetToMock() {
+    set({ tasks: MOCK_TASKS });
+  },
+}));
 
 // ── Typed selector hooks ───────────────────────────────────────────────────────
 
-/** Returns all tasks (re-renders only when tasks array reference changes). */
 export const useTasks = () => useTaskStore((s) => s.tasks);
-
-/** Returns tasks filtered by status. */
+export const useTasksLoading = () => useTaskStore((s) => s.isLoading);
 export const useTasksByStatus = (status: TaskStatus) =>
   useTaskStore((s) => s.tasks.filter((t) => t.status === status));
-
-/** Returns a single task by id (or undefined). */
 export const useTask = (id: string) =>
   useTaskStore((s) => s.tasks.find((t) => t.id === id));
 
-/**
- * Returns action functions with stable references.
- * Each action is selected individually — Zustand store function refs
- * are stable (created once), so no new object is returned from the snapshot.
- */
 export function useTaskActions() {
   const addTask      = useTaskStore((s) => s.addTask);
   const updateTask   = useTaskStore((s) => s.updateTask);
@@ -179,5 +209,6 @@ export function useTaskActions() {
   const moveTask     = useTaskStore((s) => s.moveTask);
   const reorderTasks = useTaskStore((s) => s.reorderTasks);
   const resetToMock  = useTaskStore((s) => s.resetToMock);
-  return { addTask, updateTask, deleteTask, moveTask, reorderTasks, resetToMock };
+  const fetchTasks   = useTaskStore((s) => s.fetchTasks);
+  return { addTask, updateTask, deleteTask, moveTask, reorderTasks, resetToMock, fetchTasks };
 }

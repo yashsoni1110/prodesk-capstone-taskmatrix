@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,24 +15,48 @@ import {
 import {
   Plus, CalendarDays, CheckSquare, Search,
   MoreHorizontal, Trash2, ExternalLink, Users,
-  TrendingUp, FolderKanban,
+  TrendingUp, FolderKanban, Pencil,
 } from "lucide-react";
 import Link from "next/link";
 import { useProjects, useProjectActions } from "@/store/project-store";
 import { useTasks } from "@/store/task-store";
+import { useAuthStore } from "@/store/auth-store";
 import { NewProjectDialog } from "@/components/new-project-dialog";
+import { EditProjectDialog } from "@/components/edit-project-dialog";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
+import type { Project } from "@/lib/data";
 
 export default function ProjectsPage() {
   const projects = useProjects();
   const tasks    = useTasks();
-  const { deleteProject } = useProjectActions();
+  const { deleteProject, fetchProjects } = useProjectActions();
+  const supabaseUser = useAuthStore((s) => s.supabaseUser);
   const router   = useRouter();
   const [search, setSearch] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeleting,      setIsDeleting]      = useState(false);
+  const [editProject,     setEditProject]     = useState<Project | null>(null);
+
+  // Fetch projects from Supabase on mount / when user changes
+  useEffect(() => {
+    if (supabaseUser?.id) {
+      fetchProjects(supabaseUser.id);
+    }
+  }, [supabaseUser?.id, fetchProjects]);
 
   const filtered = projects.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.description.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleDeleteConfirm = async () => {
+    if (!confirmDeleteId) return;
+    setIsDeleting(true);
+    deleteProject(confirmDeleteId);
+    await new Promise((r) => setTimeout(r, 400));
+    setIsDeleting(false);
+    setConfirmDeleteId(null);
+  };
 
   /* ── Summary stats ── */
   const totalTasks    = tasks.length;
@@ -136,8 +160,11 @@ export default function ProjectsPage() {
                       </p>
                     </div>
 
-                    {/* Progress badge + menu */}
-                    <div className="flex items-center gap-1 shrink-0">
+                    {/* Progress badge + menu — isolated from card onClick */}
+                    <div
+                      className="flex items-center gap-1 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Badge
                         variant="outline"
                         className="text-[10px] font-semibold"
@@ -151,21 +178,26 @@ export default function ProjectsPage() {
                       </Badge>
                       <DropdownMenu>
                         <DropdownMenuTrigger
-                          onClick={(e) => e.stopPropagation()}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+                          className="opacity-30 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
                           id={`project-menu-${project.id}`}
                         >
                           <MoreHorizontal className="w-4 h-4" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuContent align="end" className="w-44">
                           <DropdownMenuItem onSelect={() => router.push("/kanban")}>
-                            <ExternalLink className="w-3.5 h-3.5" /> Open Board
+                            <ExternalLink className="w-3.5 h-3.5 mr-2" /> Open Board
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => setEditProject(project)}
+                            id={`edit-project-${project.id}`}
+                          >
+                            <Pencil className="w-3.5 h-3.5 mr-2" /> Edit project…
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             variant="destructive"
-                            onSelect={() => deleteProject(project.id)}
+                            onSelect={() => setConfirmDeleteId(project.id)}
                           >
-                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete project
+                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete project…
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -189,7 +221,9 @@ export default function ProjectsPage() {
                     </span>
                     <span className="flex items-center gap-1.5">
                       <CalendarDays className="w-3.5 h-3.5" />
-                      Due {project.dueDate}
+                      {project.dueDate
+                        ? `Due ${new Date(project.dueDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                        : "No due date"}
                     </span>
                     {inProgress > 0 && (
                       <span className="flex items-center gap-1.5 text-violet-400">
@@ -251,6 +285,25 @@ export default function ProjectsPage() {
           </div>
         </div>
       )}
+
+      {/* Edit Project Dialog */}
+      {editProject && (
+        <EditProjectDialog
+          project={editProject}
+          open={!!editProject}
+          onClose={() => setEditProject(null)}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDeleteDialog
+        open={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Project"
+        description="This project will be permanently deleted. All associated tasks may be affected. This action cannot be undone."
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

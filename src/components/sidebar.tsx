@@ -17,29 +17,34 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useCurrentUser, useAuthStore } from "@/store/auth-store";
+import { useTasks } from "@/store/task-store";
+import { useProjects } from "@/store/project-store";
 import { useState } from "react";
 
-const navGroups = [
-  {
-    label: "Main",
-    items: [
-      { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-      { href: "/kanban",    icon: KanbanSquare,    label: "Tasks",         badge: "11" },
-      { href: "/projects",  icon: FolderKanban,    label: "Projects",      badge: "4"  },
-      { href: "/team",      icon: Users,           label: "Team" },
-    ],
-  },
-  {
-    label: "Workspace",
-    items: [
-      { href: "/activity",  icon: Activity, label: "Activity" },
-      { href: "/settings",  icon: Settings, label: "Settings" },
-    ],
-  },
-];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = usePathname();
+  const pathname  = usePathname();
+  const taskCount    = useTasks().length;
+  const projectCount = useProjects().length;
+
+  const navGroups = [
+    {
+      label: "Main",
+      items: [
+        { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+        { href: "/kanban",    icon: KanbanSquare,    label: "Tasks",    badge: taskCount    > 0 ? String(taskCount)    : undefined },
+        { href: "/projects",  icon: FolderKanban,    label: "Projects", badge: projectCount > 0 ? String(projectCount) : undefined },
+        { href: "/team",      icon: Users,           label: "Team" },
+      ],
+    },
+    {
+      label: "Workspace",
+      items: [
+        { href: "/activity", icon: Activity, label: "Activity" },
+        { href: "/settings", icon: Settings, label: "Settings" },
+      ],
+    },
+  ];
 
   return (
     <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { NewTaskDialog } from "@/components/new-task-dialog";
 import { EditTaskDialog } from "@/components/edit-task-dialog";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import {
   MoreHorizontal, Clock, MessageSquare,
   AlertCircle, CheckCircle2, Circle, Plus,
@@ -14,6 +15,7 @@ import {
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTasks, useTaskActions } from "@/store/task-store";
+import { useAuthStore } from "@/store/auth-store";
 import type { Task, TaskStatus } from "@/lib/data";
 
 /* ── Column config ─────────────────────────────────────────────────────────── */
@@ -52,13 +54,15 @@ function TaskCard({
   taskId,
   index,
   onEdit,
+  onDelete,
 }: {
   taskId: string;
   index: number;
   onEdit: (task: Task) => void;
+  onDelete: (id: string) => void;
 }) {
   const task = useTasks().find((t) => t.id === taskId);
-  const { deleteTask, updateTask } = useTaskActions();
+  const { updateTask } = useTaskActions();
 
   if (!task) return null;
 
@@ -113,10 +117,10 @@ function TaskCard({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     variant="destructive"
-                    onSelect={() => deleteTask(task.id)}
+                    onSelect={() => onDelete(task.id)}
                     id={`delete-task-${task.id}`}
                   >
-                    Delete task
+                    Delete task…
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -172,9 +176,11 @@ function TaskCard({
 function KanbanColumn({
   col,
   onEdit,
+  onDelete,
 }: {
   col: (typeof COLUMNS)[number];
   onEdit: (task: Task) => void;
+  onDelete: (id: string) => void;
 }) {
   const columnTasks = useTasks().filter((t) => t.status === col.id);
   const Icon = col.icon;
@@ -199,7 +205,7 @@ function KanbanColumn({
             ].join(" ")}
           >
             {columnTasks.map((task, i) => (
-              <TaskCard key={task.id} taskId={task.id} index={i} onEdit={onEdit} />
+              <TaskCard key={task.id} taskId={task.id} index={i} onEdit={onEdit} onDelete={onDelete} />
             ))}
             {provided.placeholder}
 
@@ -249,8 +255,18 @@ function BoardSummary() {
 
 /* ── Page ───────────────────────────────────────────────────────────────────── */
 export default function KanbanBoard() {
-  const { moveTask, reorderTasks } = useTaskActions();
+  const { moveTask, reorderTasks, deleteTask, fetchTasks } = useTaskActions();
+  const supabaseUser = useAuthStore((s) => s.supabaseUser);
   const [editTask, setEditTask] = useState<Task | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Fetch tasks from Supabase on mount / when user changes
+  useEffect(() => {
+    if (supabaseUser?.id) {
+      fetchTasks(supabaseUser.id);
+    }
+  }, [supabaseUser?.id, fetchTasks]);
 
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -263,6 +279,16 @@ export default function KanbanBoard() {
     } else {
       moveTask(draggableId, destination.droppableId as TaskStatus);
     }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!confirmDeleteId) return;
+    setIsDeleting(true);
+    deleteTask(confirmDeleteId);
+    // Brief wait so the UI feels responsive
+    await new Promise((r) => setTimeout(r, 400));
+    setIsDeleting(false);
+    setConfirmDeleteId(null);
   };
 
   return (
@@ -286,7 +312,7 @@ export default function KanbanBoard() {
         <div className="flex gap-3 overflow-x-auto pb-4 flex-1">
           {COLUMNS.map((col) => (
             <div key={col.id} className="flex-1 min-w-[200px] max-w-[280px] flex flex-col">
-              <KanbanColumn col={col} onEdit={setEditTask} />
+              <KanbanColumn col={col} onEdit={setEditTask} onDelete={setConfirmDeleteId} />
             </div>
           ))}
         </div>
@@ -300,6 +326,16 @@ export default function KanbanBoard() {
           onClose={() => setEditTask(null)}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDeleteDialog
+        open={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Task"
+        description="This task will be permanently deleted. This action cannot be undone."
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

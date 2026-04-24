@@ -6,9 +6,10 @@ import type { User } from "@/lib/data";
 export interface TeamStore {
   /** Extra members invited by the logged-in user (not from MOCK_USERS) */
   invitedMembers: User[];
-  inviteMember: (member: Omit<User, "id" | "avatar" | "initials" | "role">) => User;
-  removeMember: (id: string) => void;
-  clearInvited: () => void;
+  inviteMember:  (member: Omit<User, "id" | "avatar" | "initials" | "role">) => User;
+  updateMember:  (id: string, changes: Partial<Pick<User, "name" | "email" | "role" | "initials">>) => void;
+  removeMember:  (id: string) => void;
+  clearInvited:  () => void;
 }
 
 let _counter = 1;
@@ -30,6 +31,14 @@ export const useTeamStore = create<TeamStore>()((set) => ({
     };
     set((s) => ({ invitedMembers: [...s.invitedMembers, member] }));
     return member;
+  },
+
+  updateMember(id, changes) {
+    set((s) => ({
+      invitedMembers: s.invitedMembers.map((m) =>
+        m.id === id ? { ...m, ...changes } : m
+      ),
+    }));
   },
 
   removeMember(id) {

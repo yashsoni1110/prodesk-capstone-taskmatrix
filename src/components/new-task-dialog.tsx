@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, CheckCircle2 } from "lucide-react";
 import { useTaskActions } from "@/store/task-store";
+import { useAuthStore } from "@/store/auth-store";
 import type { TaskStatus } from "@/lib/data";
 
 interface NewTaskDialogProps {
@@ -23,6 +24,7 @@ interface NewTaskDialogProps {
 
 export function NewTaskDialog({ defaultStatus = "todo", triggerLabel }: NewTaskDialogProps) {
   const { addTask } = useTaskActions();
+  const supabaseUser = useAuthStore((s) => s.supabaseUser);
 
   const [open,     setOpen]     = useState(false);
   const [loading,  setLoading]  = useState(false);
@@ -46,13 +48,16 @@ export function NewTaskDialog({ defaultStatus = "todo", triggerLabel }: NewTaskD
     setLoading(true);
     await new Promise((r) => setTimeout(r, 400)); // brief optimistic delay
 
-    addTask({
-      title:      title.trim(),
-      status,
-      priority:   priority as "low" | "medium" | "high" | "critical",
-      assigneeId: assignee,
-      dueDate:    dueDate || undefined,
-    });
+    addTask(
+      {
+        title:      title.trim(),
+        status,
+        priority:   priority as "low" | "medium" | "high" | "critical",
+        assigneeId: assignee,
+        dueDate:    dueDate || undefined,
+      },
+      supabaseUser?.id ?? undefined
+    );
 
     setLoading(false);
     setSuccess(true);

@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { MOCK_PROJECTS, MOCK_USERS } from "@/lib/data";
 import type { Project, User } from "@/lib/data";
+import {
+  fetchProjectsFromDB,
+  createProjectInDB,
+  deleteProjectFromDB,
+  updateProjectInDB,
+} from "@/lib/db-projects";
 
 // ── Input types ───────────────────────────────────────────────────────────────
 
@@ -9,9 +15,7 @@ export interface NewProjectInput {
   description?: string;
   color?: string;
   dueDate?: string;
-  /** Pass pre-built User objects (from free-text input) */
   members?: User[];
-  /** Legacy: pass mock user IDs to look up from MOCK_USERS */
   memberIds?: string[];
 }
 
@@ -23,7 +27,9 @@ export type UpdateProjectInput = Partial<
 
 export interface ProjectStore {
   projects: Project[];
-  addProject:    (input: NewProjectInput) => Project;
+  isLoading: boolean;
+  fetchProjects: (userId: string) => Promise<void>;
+  addProject:    (input: NewProjectInput, userId?: string) => Project;
   updateProject: (id: string, changes: UpdateProjectInput) => boolean;
   deleteProject: (id: string) => boolean;
   addMember:     (projectId: string, userId: string) => void;
@@ -47,110 +53,132 @@ export const PROJECT_COLORS = [
   "#9333ea",
 ] as const;
 
-// ── Store (no persist/devtools — avoids SSR hydration mismatch) ───────────────
-export const useProjectStore = create<ProjectStore>()(
-  (set, get) => ({
-    projects: MOCK_PROJECTS,
+// ── Store ─────────────────────────────────────────────────────────────────────
+export const useProjectStore = create<ProjectStore>()((set, get) => ({
+  projects: MOCK_PROJECTS,
+  isLoading: false,
 
-    addProject(input) {
-      // Prefer directly-provided User objects over ID-based MOCK_USERS lookup
-      const members: User[] = input.members
-        ? input.members
-        : (input.memberIds ?? ["u1"])
-            .map((id) => MOCK_USERS.find((u) => u.id === id))
-            .filter(Boolean) as User[];
+  // ── fetchProjects ────────────────────────────────────────────────────────────
+  async fetchProjects(userId) {
+    set({ isLoading: true });
+    const remote = await fetchProjectsFromDB(userId);
+    if (remote.length > 0) {
+      set({ projects: remote, isLoading: false });
+    } else {
+      set({ isLoading: false });
+    }
+  },
 
-      const project: Project = {
-        id: nextProjectId(),
-        name: input.name,
-        description: input.description ?? "",
-        color:
-          input.color ??
-          PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)],
-        progress: 0,
-        taskCount: 0,
-        members,
-        createdAt: new Date().toISOString().split("T")[0],
-        dueDate:
-          input.dueDate ??
-          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split("T")[0],
-      };
+  // ── addProject ───────────────────────────────────────────────────────────────
+  addProject(input, userId) {
+    const members: User[] = input.members
+      ? input.members
+      : (input.memberIds ?? ["u1"])
+          .map((id) => MOCK_USERS.find((u) => u.id === id))
+          .filter(Boolean) as User[];
 
-      set((state) => ({ projects: [...state.projects, project] }));
-      return project;
-    },
+    const project: Project = {
+      id: nextProjectId(),
+      name: input.name,
+      description: input.description ?? "",
+      color:
+        input.color ??
+        PROJECT_COLORS[Math.floor(Math.random() * PROJECT_COLORS.length)],
+      progress: 0,
+      taskCount: 0,
+      members,
+      createdAt: new Date().toISOString().split("T")[0],
+      dueDate:
+        input.dueDate ??
+        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+    };
 
-    updateProject(id, changes) {
-      let found = false;
-      set((state) => {
-        const next = state.projects.map((p) => {
-          if (p.id !== id) return p;
-          found = true;
-          const members = changes.memberIds
-            ? (changes.memberIds
-                .map((uid) => MOCK_USERS.find((u) => u.id === uid))
-                .filter(Boolean) as User[])
-            : p.members;
-          const { memberIds: _m, ...rest } = changes;
-          void _m;
-          return { ...p, ...rest, members };
-        });
-        return { projects: next };
+    set((state) => ({ projects: [...state.projects, project] }));
+
+    // Persist in background
+    if (userId) {
+      createProjectInDB(userId, project).catch(() => {});
+    }
+
+    return project;
+  },
+
+  // ── updateProject ────────────────────────────────────────────────────────────
+  updateProject(id, changes) {
+    let found = false;
+    set((state) => {
+      const next = state.projects.map((p) => {
+        if (p.id !== id) return p;
+        found = true;
+        const members = changes.memberIds
+          ? (changes.memberIds
+              .map((uid) => MOCK_USERS.find((u) => u.id === uid))
+              .filter(Boolean) as User[])
+          : p.members;
+        const { memberIds: _m, ...rest } = changes;
+        void _m;
+        return { ...p, ...rest, members };
       });
-      return found;
-    },
+      return { projects: next };
+    });
 
-    deleteProject(id) {
-      const exists = get().projects.some((p) => p.id === id);
-      if (!exists) return false;
-      set((state) => ({
-        projects: state.projects.filter((p) => p.id !== id),
-      }));
-      return true;
-    },
+    if (found) {
+      updateProjectInDB(id, changes as Partial<Project>).catch(() => {});
+    }
 
-    addMember(projectId, userId) {
-      const user = MOCK_USERS.find((u) => u.id === userId);
-      if (!user) return;
-      set((state) => ({
-        projects: state.projects.map((p) => {
-          if (p.id !== projectId) return p;
-          if (p.members.some((m) => m.id === userId)) return p;
-          return { ...p, members: [...p.members, user] };
-        }),
-      }));
-    },
+    return found;
+  },
 
-    removeMember(projectId, userId) {
-      set((state) => ({
-        projects: state.projects.map((p) =>
-          p.id === projectId
-            ? { ...p, members: p.members.filter((m) => m.id !== userId) }
-            : p
-        ),
-      }));
-    },
+  // ── deleteProject ─────────────────────────────────────────────────────────────
+  deleteProject(id) {
+    const exists = get().projects.some((p) => p.id === id);
+    if (!exists) return false;
+    set((state) => ({
+      projects: state.projects.filter((p) => p.id !== id),
+    }));
 
-    resetToMock() {
-      set({ projects: MOCK_PROJECTS });
-    },
-  })
-);
+    // Persist in background
+    deleteProjectFromDB(id).catch(() => {});
+
+    return true;
+  },
+
+  addMember(projectId, userId) {
+    const user = MOCK_USERS.find((u) => u.id === userId);
+    if (!user) return;
+    set((state) => ({
+      projects: state.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        if (p.members.some((m) => m.id === userId)) return p;
+        return { ...p, members: [...p.members, user] };
+      }),
+    }));
+  },
+
+  removeMember(projectId, userId) {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, members: p.members.filter((m) => m.id !== userId) }
+          : p
+      ),
+    }));
+  },
+
+  resetToMock() {
+    set({ projects: MOCK_PROJECTS });
+  },
+}));
 
 // ── Selector hooks ────────────────────────────────────────────────────────────
 
 export const useProjects = () => useProjectStore((s) => s.projects);
-
+export const useProjectsLoading = () => useProjectStore((s) => s.isLoading);
 export const useProject = (id: string) =>
   useProjectStore((s) => s.projects.find((p) => p.id === id));
 
-/**
- * Returns action functions with stable references.
- * Each action is selected individually — Zustand store function refs
- * are stable (created once), so no new object is returned from the snapshot.
- */
 export function useProjectActions() {
   const addProject    = useProjectStore((s) => s.addProject);
   const updateProject = useProjectStore((s) => s.updateProject);
@@ -158,5 +186,6 @@ export function useProjectActions() {
   const addMember     = useProjectStore((s) => s.addMember);
   const removeMember  = useProjectStore((s) => s.removeMember);
   const resetToMock   = useProjectStore((s) => s.resetToMock);
-  return { addProject, updateProject, deleteProject, addMember, removeMember, resetToMock };
+  const fetchProjects = useProjectStore((s) => s.fetchProjects);
+  return { addProject, updateProject, deleteProject, addMember, removeMember, resetToMock, fetchProjects };
 }
