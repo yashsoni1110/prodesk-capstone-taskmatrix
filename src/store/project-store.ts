@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { MOCK_PROJECTS, MOCK_USERS } from "@/lib/data";
+import { MOCK_USERS } from "@/lib/data";
 import type { Project, User } from "@/lib/data";
 import {
   fetchProjectsFromDB,
@@ -28,18 +28,21 @@ export type UpdateProjectInput = Partial<
 export interface ProjectStore {
   projects: Project[];
   isLoading: boolean;
+  /** Tracks the userId whose projects are currently loaded. */
+  loadedForUserId: string | null;
   fetchProjects: (userId: string) => Promise<void>;
   addProject:    (input: NewProjectInput, userId?: string) => Project;
   updateProject: (id: string, changes: UpdateProjectInput) => boolean;
   deleteProject: (id: string) => boolean;
   addMember:     (projectId: string, userId: string) => void;
   removeMember:  (projectId: string, userId: string) => void;
-  resetToMock:   () => void;
+  /** Clear all projects (used on logout). */
+  clearProjects: () => void;
 }
 
 // ── ID counter ────────────────────────────────────────────────────────────────
-let _pCounter = MOCK_PROJECTS.length + 1;
-const nextProjectId = () => `p${_pCounter++}`;
+let _pCounter = 1;
+const nextProjectId = () => `proj_${Date.now()}_${_pCounter++}`;
 
 // ── PROJECT_COLORS ────────────────────────────────────────────────────────────
 export const PROJECT_COLORS = [
@@ -55,18 +58,16 @@ export const PROJECT_COLORS = [
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 export const useProjectStore = create<ProjectStore>()((set, get) => ({
-  projects: MOCK_PROJECTS,
+  projects: [],
   isLoading: false,
+  loadedForUserId: null,
 
   // ── fetchProjects ────────────────────────────────────────────────────────────
   async fetchProjects(userId) {
     set({ isLoading: true });
     const remote = await fetchProjectsFromDB(userId);
-    if (remote.length > 0) {
-      set({ projects: remote, isLoading: false });
-    } else {
-      set({ isLoading: false });
-    }
+    // Always replace — empty array is valid for a new user
+    set({ projects: remote, isLoading: false, loadedForUserId: userId });
   },
 
   // ── addProject ───────────────────────────────────────────────────────────────
@@ -99,7 +100,16 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
 
     // Persist in background
     if (userId) {
-      createProjectInDB(userId, project).catch(() => {});
+      createProjectInDB(userId, project).then((dbId) => {
+        // Swap the temp local id with the DB-generated UUID
+        if (dbId && dbId !== project.id) {
+          set((state) => ({
+            projects: state.projects.map((p) =>
+              p.id === project.id ? { ...p, id: dbId } : p
+            ),
+          }));
+        }
+      }).catch(() => {});
     }
 
     return project;
@@ -167,8 +177,9 @@ export const useProjectStore = create<ProjectStore>()((set, get) => ({
     }));
   },
 
-  resetToMock() {
-    set({ projects: MOCK_PROJECTS });
+  // ── clearProjects ────────────────────────────────────────────────────────────
+  clearProjects() {
+    set({ projects: [], loadedForUserId: null });
   },
 }));
 
@@ -185,7 +196,7 @@ export function useProjectActions() {
   const deleteProject = useProjectStore((s) => s.deleteProject);
   const addMember     = useProjectStore((s) => s.addMember);
   const removeMember  = useProjectStore((s) => s.removeMember);
-  const resetToMock   = useProjectStore((s) => s.resetToMock);
+  const clearProjects = useProjectStore((s) => s.clearProjects);
   const fetchProjects = useProjectStore((s) => s.fetchProjects);
-  return { addProject, updateProject, deleteProject, addMember, removeMember, resetToMock, fetchProjects };
+  return { addProject, updateProject, deleteProject, addMember, removeMember, clearProjects, fetchProjects };
 }

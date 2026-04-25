@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { MOCK_TASKS, MOCK_USERS } from "@/lib/data";
-import type { Task, TaskStatus, Priority } from "@/lib/data";
+import { MOCK_USERS } from "@/lib/data";
+import type { Task, TaskStatus, Priority, User } from "@/lib/data";
 import {
   fetchTasksFromDB,
   createTaskInDB,
@@ -18,6 +18,8 @@ export interface NewTaskInput {
   dueDate?: string;
   tags?: string[];
   description?: string;
+  /** Pass the real Supabase-authenticated user so the task is attributed correctly. */
+  currentUser?: User;
 }
 
 // ── Input type for updating an existing task ──────────────────────────────────
@@ -28,10 +30,12 @@ export interface TaskStore {
   tasks: Task[];
   isLoading: boolean;
   isSaving: boolean;
+  /** Tracks the userId whose tasks are currently loaded — for user-switch hygiene. */
+  loadedForUserId: string | null;
 
   // ── CRUD actions ─────────────────────────────────────────────────────────────
 
-  /** Fetch tasks from Supabase for the given user. */
+  /** Fetch tasks from Supabase for the given user. Always replaces local state. */
   fetchTasks: (userId: string) => Promise<void>;
 
   /**
@@ -61,37 +65,37 @@ export interface TaskStore {
     destinationIndex: number
   ) => void;
   getByStatus: (status: TaskStatus) => Task[];
-  resetToMock: () => void;
+  /** Clear all tasks (used on logout). */
+  clearTasks: () => void;
 }
 
 // ── Counter for generating local temp ids ─────────────────────────────────────
-let _idCounter = MOCK_TASKS.length + 1;
+let _idCounter = 1;
 function nextId(): string {
-  return `t${_idCounter++}`;
+  return `task_${Date.now()}_${_idCounter++}`;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 export const useTaskStore = create<TaskStore>()((set, get) => ({
-  tasks: MOCK_TASKS,
+  tasks: [],
   isLoading: false,
   isSaving: false,
+  loadedForUserId: null,
 
   // ── fetchTasks ───────────────────────────────────────────────────────────────
   async fetchTasks(userId) {
     set({ isLoading: true });
     const remote = await fetchTasksFromDB(userId);
-    if (remote.length > 0) {
-      set({ tasks: remote, isLoading: false });
-    } else {
-      // No data in Supabase yet — keep mock data so UI is never blank
-      set({ isLoading: false });
-    }
+    // Always replace — empty array is valid for a new user
+    set({ tasks: remote, isLoading: false, loadedForUserId: userId });
   },
 
   // ── addTask ──────────────────────────────────────────────────────────────────
   addTask(input, userId) {
-    const assignee =
-      MOCK_USERS.find((u) => u.id === (input.assigneeId ?? "u1")) ??
+    // Prefer the real logged-in user; fall back to mock user match or first mock
+    const assignee: User =
+      input.currentUser ??
+      MOCK_USERS.find((u) => u.id === input.assigneeId) ??
       MOCK_USERS[0];
 
     const newTask: Task = {
@@ -101,7 +105,8 @@ export const useTaskStore = create<TaskStore>()((set, get) => ({
       status: input.status ?? "todo",
       priority: input.priority ?? "medium",
       assignee,
-      projectId: input.projectId ?? "p1",
+      // Don't default to mock project id "p1" for real users — leave blank
+      projectId: input.projectId ?? "",
       dueDate:
         input.dueDate ??
         new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -117,7 +122,17 @@ export const useTaskStore = create<TaskStore>()((set, get) => ({
 
     // Persist to Supabase in the background (non-blocking)
     if (userId) {
-      createTaskInDB(userId, newTask).catch(() => {
+      createTaskInDB(userId, newTask).then((dbId) => {
+        // Replace the temp local id with the DB-generated UUID so future
+        // updates/deletes target the correct row.
+        if (dbId && dbId !== newTask.id) {
+          set((state) => ({
+            tasks: state.tasks.map((t) =>
+              t.id === newTask.id ? { ...t, id: dbId } : t
+            ),
+          }));
+        }
+      }).catch(() => {
         // silently fail — user still sees the local state
       });
     }
@@ -187,9 +202,9 @@ export const useTaskStore = create<TaskStore>()((set, get) => ({
     return get().tasks.filter((t) => t.status === status);
   },
 
-  // ── resetToMock ──────────────────────────────────────────────────────────────
-  resetToMock() {
-    set({ tasks: MOCK_TASKS });
+  // ── clearTasks ────────────────────────────────────────────────────────────────
+  clearTasks() {
+    set({ tasks: [], loadedForUserId: null });
   },
 }));
 
@@ -208,7 +223,7 @@ export function useTaskActions() {
   const deleteTask   = useTaskStore((s) => s.deleteTask);
   const moveTask     = useTaskStore((s) => s.moveTask);
   const reorderTasks = useTaskStore((s) => s.reorderTasks);
-  const resetToMock  = useTaskStore((s) => s.resetToMock);
+  const clearTasks   = useTaskStore((s) => s.clearTasks);
   const fetchTasks   = useTaskStore((s) => s.fetchTasks);
-  return { addTask, updateTask, deleteTask, moveTask, reorderTasks, resetToMock, fetchTasks };
+  return { addTask, updateTask, deleteTask, moveTask, reorderTasks, clearTasks, fetchTasks };
 }

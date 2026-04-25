@@ -25,6 +25,7 @@ interface NewTaskDialogProps {
 export function NewTaskDialog({ defaultStatus = "todo", triggerLabel }: NewTaskDialogProps) {
   const { addTask } = useTaskActions();
   const supabaseUser = useAuthStore((s) => s.supabaseUser);
+  const currentUser  = useAuthStore((s) => s.user);
 
   const [open,     setOpen]     = useState(false);
   const [loading,  setLoading]  = useState(false);
@@ -50,11 +51,13 @@ export function NewTaskDialog({ defaultStatus = "todo", triggerLabel }: NewTaskD
 
     addTask(
       {
-        title:      title.trim(),
+        title:       title.trim(),
         status,
-        priority:   priority as "low" | "medium" | "high" | "critical",
-        assigneeId: assignee,
-        dueDate:    dueDate || undefined,
+        priority:    priority as "low" | "medium" | "high" | "critical",
+        assigneeId:  assignee,
+        dueDate:     dueDate || undefined,
+        // Pass the real logged-in user so the task shows their name
+        currentUser: currentUser ?? undefined,
       },
       supabaseUser?.id ?? undefined
     );

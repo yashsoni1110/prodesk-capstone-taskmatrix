@@ -15,10 +15,8 @@ import {
   Clock, ArrowRight, MessageSquare,
   FolderKanban, Plus, ArrowUpRight, ExternalLink,
 } from "lucide-react";
-import { useTasks } from "@/store/task-store";
-import { useTaskActions } from "@/store/task-store";
-import { useProjects } from "@/store/project-store";
-import { useProjectActions } from "@/store/project-store";
+import { useTasks, useTaskActions, useTasksLoading } from "@/store/task-store";
+import { useProjects, useProjectActions, useProjectsLoading } from "@/store/project-store";
 import { useCurrentUser, useSupabaseUser } from "@/store/auth-store";
 import { MOCK_USERS, MOCK_ACTIVITY } from "@/lib/data";
 
@@ -55,6 +53,9 @@ export default function DashboardPage() {
   const supaUser    = useSupabaseUser();
   const { fetchTasks }    = useTaskActions();
   const { fetchProjects } = useProjectActions();
+  const tasksLoading    = useTasksLoading();
+  const projectsLoading = useProjectsLoading();
+  const isLoading = tasksLoading || projectsLoading;
   const recentTasks = tasks.slice(0, 6);
 
   // Fetch real data from Supabase on mount
@@ -66,8 +67,7 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supaUser?.id]);
 
-  // ── Derive display values from real auth data ────────────────────────────
-  // Priority: mock-matched User (has name/role/initials) → Supabase email → fallback
+  // ── Derive display values from real auth data ────────────────────────────────
   const displayName     = user?.name
     ?? (supaUser?.email ? supaUser.email.split("@")[0] : null)
     ?? "You";
@@ -79,15 +79,32 @@ export default function DashboardPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  // ── Build Team Workload list — real user first if not in mock data ────────
-  const isRealUserInMock = !!user; // user is only set if email matched MOCK_USERS
+  // ── Build Team Workload list ────────────────────────────────────────────
+  // For real (non-demo) users: show only themselves in workload
+  // For demo users (mock email match): show full MOCK_USERS roster
+  const isRealUserInMock = !!user && MOCK_USERS.some(m => m.id === user.id);
   const workloadUsers: Array<{ id: string; name: string; initials: string; role: string }> = [
-    // Inject the real Supabase user at top if they have no mock entry
     ...(!isRealUserInMock && supaUser
       ? [{ id: supaUser.id, name: displayName, initials: displayInitials, role: "member" }]
       : []),
-    ...MOCK_USERS,
+    ...(isRealUserInMock ? MOCK_USERS : []),
   ];
+
+  // ── Loading skeleton ───────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="space-y-5">
+        <div className="h-8 w-64 rounded-md bg-muted/40 animate-pulse" />
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[1,2,3].map((i) => (
+            <div key={i} className="h-32 rounded-xl bg-muted/40 animate-pulse" />
+          ))}
+        </div>
+        <div className="h-56 rounded-xl bg-muted/40 animate-pulse" />
+      </div>
+    );
+  }
+
 
   return (
     <div className="space-y-5">
@@ -178,8 +195,14 @@ export default function DashboardPage() {
                   </div>
                 ))}
                 {recentTasks.length === 0 && (
-                  <div className="flex flex-col items-center py-10 gap-3 text-muted-foreground">
-                    <span className="text-[13px]">No tasks yet</span>
+                  <div className="flex flex-col items-center py-12 gap-4 text-muted-foreground">
+                    <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                      <Plus className="w-7 h-7 text-primary" strokeWidth={1.5} />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-foreground">No tasks yet</p>
+                      <p className="text-[12px] text-muted-foreground/70 mt-0.5">Create your first task to get started</p>
+                    </div>
                     <NewTaskDialog />
                   </div>
                 )}
@@ -195,7 +218,24 @@ export default function DashboardPage() {
                 All projects <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
-            <div className="grid sm:grid-cols-2 gap-3">
+            {projects.length === 0 ? (
+              <div className="flex flex-col items-center py-12 gap-4 border border-border/40 rounded-xl text-muted-foreground">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                  <FolderKanban className="w-7 h-7 text-emerald-500" strokeWidth={1.5} />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-foreground">No projects yet</p>
+                  <p className="text-[12px] text-muted-foreground/70 mt-0.5">Head to Projects to create your first one</p>
+                </div>
+                <Link
+                  href="/projects"
+                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-primary text-primary-foreground text-[13px] font-medium hover:opacity-90 transition-opacity"
+                >
+                  <Plus className="w-3.5 h-3.5" /> New Project
+                </Link>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3">
               {projects.slice(0, 4).map((project) => {
                 const projectTasks = tasks.filter(t => t.projectId === project.id);
                 const done = projectTasks.filter(t => t.status === "done").length;
@@ -248,8 +288,10 @@ export default function DashboardPage() {
                   </Card>
                 );
               })}
-            </div>
+              </div>
+            )}
           </div>
+
         </div>
 
         {/* ── Right column ── */}

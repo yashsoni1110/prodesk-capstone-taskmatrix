@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { MOCK_USERS } from "@/lib/data";
 import type { User } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { useTaskStore } from "@/store/task-store";
+import { useProjectStore } from "@/store/project-store";
 
 // ── Supabase auth user shape (id + email only) ────────────────────────────────
 
@@ -163,33 +165,55 @@ export const useAuthStore = create<AuthStore>()((set) => ({
 
   // ── initializeAuth ──────────────────────────────────────────────────────────
   initializeAuth() {
-    // 1. Immediately read the cached session (localStorage, no network round-trip)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        set({
-          supabaseUser: toSupabaseUser(session.user),
-      user: buildUserFromSupabase(session.user),
-          isAuthenticated: true,
-          initialized: true,
-          isLoading: false,
-        });
-      } else {
-        set({ initialized: true, isLoading: false });
-      }
-    });
-
-    // 2. Subscribe to future auth events (token refresh, multi-tab sign-out, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+    // 1. Immediately read the cached session (localStorage, no network round-trip).
+    //    A stale/expired refresh token throws "Invalid Refresh Token: Refresh Token Not Found".
+    //    We catch that here and sign out silently so the user lands on the login page cleanly.
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (error) {
+          console.warn("[auth] Session restore failed (stale token):", error.message);
+          // Clear the bad token from localStorage and treat as logged-out
+          return supabase.auth.signOut().finally(() => {
+            set({ initialized: true, isLoading: false });
+          });
+        }
         if (session?.user) {
           set({
             supabaseUser: toSupabaseUser(session.user),
-        user: buildUserFromSupabase(session.user),
+            user: buildUserFromSupabase(session.user),
             isAuthenticated: true,
             initialized: true,
             isLoading: false,
           });
         } else {
+          set({ initialized: true, isLoading: false });
+        }
+      })
+      .catch((err: unknown) => {
+        // Unexpected network / parse error — still mark initialized so app doesn't hang
+        console.warn("[auth] getSession threw unexpectedly:", err);
+        supabase.auth.signOut().finally(() => {
+          set({ initialized: true, isLoading: false });
+        });
+      });
+
+    // 2. Subscribe to future auth events (token refresh, multi-tab sign-out, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session?.user) {
+          set({
+            supabaseUser: toSupabaseUser(session.user),
+            user: buildUserFromSupabase(session.user),
+            isAuthenticated: true,
+            initialized: true,
+            isLoading: false,
+          });
+        } else {
+          // Token refresh failure or explicit sign-out — clear per-user store data
+          if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED") {
+            useTaskStore.getState().clearTasks();
+            useProjectStore.getState().clearProjects();
+          }
           set({
             supabaseUser: null,
             user: null,
@@ -303,6 +327,9 @@ export const useAuthStore = create<AuthStore>()((set) => ({
   // ── logout ───────────────────────────────────────────────────────────────────
   async logout() {
     await supabase.auth.signOut();
+    // Clear per-user data from the task and project stores
+    useTaskStore.getState().clearTasks();
+    useProjectStore.getState().clearProjects();
     set({
       user: null,
       supabaseUser: null,
