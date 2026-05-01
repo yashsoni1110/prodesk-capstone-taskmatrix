@@ -385,3 +385,39 @@ These are the AI prompts I used for help while building TaskMatrix, ordered from
 > If Vercel is connected to GitHub it auto-deploys on push. For first-time setup: run `vercel --prod` or go to vercel.com/new and import the GitHub repo. Remember to add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY as environment variables in the Vercel dashboard.
 
 ---
+
+## ✨ Week 16 — Polish & AI Injection
+
+### 48. Integrating Google Gemini API
+
+> How do I integrate the Google Gemini API (`@google/genai`) in a Next.js 16 app to auto-generate task sub-steps? The user should click an "✨ AI" button in the Edit Task dialog. It should send the task title and description to a Next.js API route or Server Action, prompt the AI to return a JSON array of steps, and display them in a new UI block inside the dialog. Needs loading states and a fallback in case the API returns a 429 quota error.
+
+---
+
+### 49. AI Project Milestones Generation
+
+> Now I want to add a second AI feature. In the Edit Project dialog, add an "✨ AI Roadmap" button. When clicked, it should send the project name and description to Gemini and ask for 4-5 high-level milestones. Return it as a JSON array of strings and display them as a list below the description field.
+
+---
+
+### 50. Fixing Radix UI Select Dropdown Clipping
+
+> I have a bug where my `shadcn/ui` Select dropdowns inside the New Task and Edit Task dialogs are getting cut off by the dialog's `overflow-y-auto` container. The dropdown list opens downwards but is trapped inside the scrollable area. How do I make the `SelectContent` break out of the container and float over everything?
+
+---
+
+### 51. Fixing Radix UI DropdownMenu Clipping on Kanban
+
+> I have another clipping bug. On my Kanban board, the 3-dot `DropdownMenu` on task cards is getting cut off by the column's `overflow-y-auto` or the board's `overflow-x-auto`. The menu needs to float above the entire screen. How do I fix the `DropdownMenuContent` so it uses React Portal (`createPortal`) to append directly to `document.body` with `position: fixed`?
+
+---
+
+### 52. Replacing alert() with Sonner Toasts
+
+> I want to polish my app's micro-interactions. Replace all my ugly browser `alert()` and `confirm()` popups with beautiful toast notifications. How do I install and configure `sonner` in my Next.js App Router project, and trigger success/error toasts when tasks are created, deleted, or when the AI generation completes?
+
+---
+
+### 53. Implementing Empty States
+
+> When a new user logs in or views a project with no tasks, they just see a blank area. I want to add "Empty States". For the Kanban board, if there are 0 tasks, show a centered `div` with a big transparent Lucide icon (like a Clipboard or FilePlus), a title "No tasks found", a subtitle, and a "Create your first task" button. Same for the Projects page if there are 0 projects.

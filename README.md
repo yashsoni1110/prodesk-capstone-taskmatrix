@@ -28,13 +28,14 @@
 3. [Tech Stack](#-tech-stack)
 4. [Week 14 MVP — Auth & Routing](#-week-14-mvp--auth--routing)
 5. [Week 15 — Full CRUD & Analytics](#-week-15--full-crud--analytics)
-6. [Core Features](#-core-features)
-7. [UI Wireframes (Figma)](#-ui-wireframes)
-8. [State Architecture Diagram](#-state-architecture-diagram)
-9. [Data Models](#-data-models)
-10. [Folder Structure](#-folder-structure)
-11. [Development Timeline](#-development-timeline)
-12. [Getting Started](#-getting-started)
+6. [Week 16 — Polish & AI Injection](#-week-16--polish--ai-injection)
+7. [Core Features](#-core-features)
+8. [UI Wireframes (Figma)](#-ui-wireframes)
+9. [State Architecture Diagram](#-state-architecture-diagram)
+10. [Data Models](#-data-models)
+11. [Folder Structure](#-folder-structure)
+12. [Development Timeline](#-development-timeline)
+13. [Getting Started](#-getting-started)
 
 ---
 
@@ -241,6 +242,38 @@ alter table projects enable row level security;
 create policy "tasks_own"    on tasks    for all using (auth.uid() = user_id);
 create policy "projects_own" on projects for all using (auth.uid() = user_id);
 ```
+
+---
+
+## ✨ Week 16 — Polish & AI Injection
+
+Week 16 focuses on elevating the application from a functional CRUD app to a professional SaaS product by integrating artificial intelligence and polishing the user experience.
+
+### Milestone 1 — The AI Injection ✅
+
+| Feature | Implementation |
+|---|---|
+| AI API | Google Gemini (`gemini-1.5-flash`) via `@google/genai` |
+| Task Sub-steps | "✨ AI" button in Edit Task dialog auto-generates actionable sub-steps based on the task title |
+| Project Milestones | "✨ AI" button in Edit Project dialog generates a high-level roadmap based on the project description |
+| Robustness | Built-in fallback mechanisms if API quota is exceeded |
+
+### Milestone 2 — The Mobile Polish ✅
+
+| Feature | Implementation |
+|---|---|
+| Hamburger Menu | Responsive sidebar collapses into a mobile "Sheet" drawer |
+| Horizontal Scroll | Kanban board columns stack vertically or scroll horizontally via `overflow-x-auto` |
+| Floating Dropdowns | All `<Select>` and `<DropdownMenu>` components use `createPortal` with `position: fixed` to float over overflow boundaries |
+| Responsive Dialogs | Dialog contents properly scroll independently of headers/footers |
+
+### Milestone 3 — Micro-Interactions ✅
+
+| Feature | Implementation |
+|---|---|
+| Toast Notifications | Integrated `sonner` for sleek, modern toasts (replaces all raw `alert()` popups) |
+| Loading States | Spinner `Loader2` during auth validation and form submissions |
+| Empty States | Beautiful, icon-driven "No Data" screens for 0 tasks, 0 projects, and 0 team members |
 
 ---
 
@@ -548,7 +581,7 @@ prodesk-capstone-taskmatrix/
 | **Week 13** | 📐 Planning & Design | ✅ Done | PRD (README), Wireframes, State Architecture Diagram |
 | **Week 14** | 🏗 MVP / Walking Skeleton | ✅ Done | Supabase auth, protected routes, real user profile, deployed to Vercel |
 | **Week 15** | ✅ Full CRUD & Analytics | ✅ Done | Supabase tasks/projects tables, full Create/Read/Update/Delete, Recharts analytics, live sidebar counts, edit/delete with confirmation dialogs |
-| **Week 16** | 🤖 AI & Polish | 🔜 Upcoming | AI task suggestions, animations, profile photos |
+| **Week 16** | 🤖 AI & Polish | ✅ Done | Gemini AI integration, UI polishes, Sonner toasts, empty states, responsive Kanban, Floating dropdowns |
 | **Week 17** | 🚀 Final Deployment | 🔜 Upcoming | Final QA, demo video, presentation |
 
 ---
@@ -600,7 +633,7 @@ Open [http://localhost:3000](http://localhost:3000) — register a new account o
 
 <div align="center">
 
-**Built with ❤️ as a Capstone Project — Week 15 CRUD Complete**
+**Built with ❤️ as a Capstone Project — Week 16 Polish Complete**
 
 *TaskMatrix — Ship faster with clarity.*
 
