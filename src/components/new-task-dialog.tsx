@@ -32,6 +32,15 @@ export function NewTaskDialog({ defaultStatus = "todo", triggerLabel, defaultPro
   const currentUser  = useAuthStore((s) => s.user);
   const projects     = useProjects();
 
+  // Assignee display names (keyed by mock ID)
+  const ASSIGNEES: Record<string, string> = {
+    u1: "Alex Morgan",
+    u2: "Priya Sharma",
+    u3: "James Liu",
+    u4: "Sofia Chen",
+    u5: "Marcus Webb",
+  };
+
   const [open,      setOpen]      = useState(false);
   const [loading,   setLoading]   = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -197,9 +206,21 @@ export function NewTaskDialog({ defaultStatus = "todo", triggerLabel, defaultPro
           {projects.length > 0 && (
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Project</Label>
-              <Select value={projectId} onValueChange={(v) => setProjectId(v === "none" ? "" : v)}>
+              <Select value={projectId || "none"} onValueChange={(v) => setProjectId(v === "none" ? "" : v)}>
                 <SelectTrigger className="h-9 w-full" id="task-project-select">
-                  <SelectValue placeholder="No project" />
+                  <SelectValue>
+                    {projectId
+                      ? (() => {
+                          const p = projects.find((x) => x.id === projectId);
+                          return p ? (
+                            <span className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                              {p.name}
+                            </span>
+                          ) : "— No project —";
+                        })()
+                      : "— No project —"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— No project —</SelectItem>
@@ -250,7 +271,11 @@ export function NewTaskDialog({ defaultStatus = "todo", triggerLabel, defaultPro
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Assignee</Label>
               <Select value={assignee} onValueChange={(v) => { if (v) setAssignee(v); }}>
-                <SelectTrigger className="h-9 w-full"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue>
+                    {ASSIGNEES[assignee] ?? assignee}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="u1">Alex Morgan</SelectItem>
                   <SelectItem value="u2">Priya Sharma</SelectItem>

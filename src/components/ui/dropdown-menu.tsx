@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -117,29 +118,48 @@ function DropdownMenuContent({
   className,
   align = "start",
   children,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  sideOffset: _so,
   ...props
 }: React.ComponentProps<"div"> & {
   align?: "start" | "end" | "center"
   sideOffset?: number
 }) {
-  const { open, contentRef } = React.useContext(DropdownMenuContext)
-  if (!open) return null
+  const { open, contentRef, triggerRef } = React.useContext(DropdownMenuContext)
+  const [pos, setPos] = React.useState<React.CSSProperties>({})
 
-  const alignClass =
-    align === "end" ? "right-0" : align === "center" ? "left-1/2 -translate-x-1/2" : "left-0"
+  React.useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return
+    const rect = triggerRef.current.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const flipped = spaceBelow < 220 && rect.top > 220
 
-  return (
+    const top    = flipped ? rect.top - 4 : rect.bottom + 4
+    const right  = window.innerWidth - rect.right
+    const left   = rect.left
+
+    setPos(
+      align === "end"
+        ? { position: "fixed", top, right, zIndex: 9999, ...(flipped ? { transform: "translateY(-100%)" } : {}) }
+        : { position: "fixed", top, left,  zIndex: 9999, ...(flipped ? { transform: "translateY(-100%)" } : {}) }
+    )
+  }, [open, align, triggerRef])
+
+  if (!open || typeof document === "undefined") return null
+
+  return createPortal(
     <div
       ref={contentRef}
+      style={pos}
       className={cn(
-        "absolute top-full mt-1 z-50 min-w-32 w-max rounded-lg bg-popover p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/10 animate-in fade-in-0 zoom-in-95",
-        alignClass,
+        "min-w-32 w-max rounded-lg bg-popover p-1 text-popover-foreground shadow-xl ring-1 ring-foreground/10 animate-in fade-in-0 zoom-in-95",
         className
       )}
       {...props}
     >
       {children}
-    </div>
+    </div>,
+    document.body
   )
 }
 
