@@ -15,7 +15,7 @@ import {
 import {
   Plus, CalendarDays, CheckSquare, Search,
   MoreHorizontal, Trash2, ExternalLink, Users,
-  TrendingUp, FolderKanban, Pencil,
+  TrendingUp, FolderKanban, Pencil, AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useProjects, useProjectActions } from "@/store/project-store";
@@ -130,10 +130,13 @@ export default function ProjectsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {filtered.map((project) => {
-            const projectTasks = tasks.filter((t) => t.projectId === project.id);
-            const done         = projectTasks.filter((t) => t.status === "done").length;
-            const inProgress   = projectTasks.filter((t) => t.status === "in-progress").length;
-            const pct          = projectTasks.length > 0
+            const projectTasks  = tasks.filter((t) => t.projectId === project.id);
+            const hasLinkedTasks = projectTasks.length > 0;
+            const done           = projectTasks.filter((t) => t.status === "done").length;
+            const inProgress     = projectTasks.filter((t) => t.status === "in-progress").length;
+            const critical       = projectTasks.filter((t) => t.priority === "critical").length;
+            const displayCount   = hasLinkedTasks ? projectTasks.length : project.taskCount;
+            const pct            = hasLinkedTasks
               ? Math.round((done / projectTasks.length) * 100)
               : project.progress;
 
@@ -141,7 +144,7 @@ export default function ProjectsPage() {
               <Card
                 key={project.id}
                 id={`project-card-${project.id}`}
-                onClick={() => router.push("/kanban")}
+                onClick={() => router.push(`/kanban?project=${project.id}`)}
                 className="group border-border/50 hover:border-primary/40 hover:shadow-md transition-all duration-150 overflow-hidden cursor-pointer"
               >
                 {/* Color accent bar */}
@@ -189,7 +192,7 @@ export default function ProjectsPage() {
                           <MoreHorizontal className="w-4 h-4" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44">
-                          <DropdownMenuItem onSelect={() => router.push("/kanban")}>
+                          <DropdownMenuItem onSelect={() => router.push(`/kanban?project=${project.id}`)}>
                             <ExternalLink className="w-3.5 h-3.5 mr-2" /> Open Board
                           </DropdownMenuItem>
                           <DropdownMenuItem
@@ -213,7 +216,7 @@ export default function ProjectsPage() {
                   <div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
                       <span>Progress</span>
-                      <span>{done} / {projectTasks.length || project.taskCount} tasks done</span>
+                      <span>{done} / {displayCount} tasks done</span>
                     </div>
                     <Progress value={pct} className="h-1.5" />
                   </div>
@@ -222,7 +225,7 @@ export default function ProjectsPage() {
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <CheckSquare className="w-3.5 h-3.5" />
-                      {projectTasks.length || project.taskCount} tasks
+                      {displayCount} tasks
                     </span>
                     <span className="flex items-center gap-1.5">
                       <CalendarDays className="w-3.5 h-3.5" />
@@ -236,7 +239,20 @@ export default function ProjectsPage() {
                         {inProgress} active
                       </span>
                     )}
+                    {critical > 0 && (
+                      <span className="flex items-center gap-1.5 text-red-400">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        {critical} critical
+                      </span>
+                    )}
                   </div>
+
+                  {/* No linked tasks hint */}
+                  {!hasLinkedTasks && (
+                    <p className="text-[11px] text-muted-foreground/60 italic">
+                      💡 Click card to open board · create tasks there to link them here
+                    </p>
+                  )}
 
                     <div className="flex items-center justify-between pt-0.5">
                       <div className="flex items-center">

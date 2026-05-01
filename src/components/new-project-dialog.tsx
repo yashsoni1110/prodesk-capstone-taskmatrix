@@ -9,29 +9,36 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, X, UserPlus, Loader2 } from "lucide-react";
+import { Plus, X, UserPlus, Loader2, Sparkles, CheckCircle2, Flag } from "lucide-react";
 import { useProjectActions, PROJECT_COLORS } from "@/store/project-store";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
+import { generateProjectPlan } from "@/lib/gemini";
+
+/* ── Encode milestones into description for persistence ─────────────────── */
+function encodePlan(desc: string, milestones: string[]): string {
+  if (milestones.length === 0) return desc;
+  return `${desc}\nMilestones:\n${milestones.map((m, i) => `${i + 1}. ${m}`).join("\n")}`;
+}
 
 export function NewProjectDialog() {
-  const { addProject } = useProjectActions();
-  const storeUser = useAuthStore((s) => s.user);
-  const supabaseUser = useAuthStore((s) => s.supabaseUser);
+  const { addProject }   = useProjectActions();
+  const storeUser        = useAuthStore((s) => s.user);
+  const supabaseUser     = useAuthStore((s) => s.supabaseUser);
 
-  const [open,    setOpen]    = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [name,    setName]    = useState("");
-  const [desc,    setDesc]    = useState("");
-  const [color,   setColor]   = useState<typeof PROJECT_COLORS[number]>(PROJECT_COLORS[0]);
-  const [dueDate, setDueDate] = useState("");
+  const [open,       setOpen]       = useState(false);
+  const [loading,    setLoading]    = useState(false);
+  const [success,    setSuccess]    = useState(false);
+  const [name,       setName]       = useState("");
+  const [desc,       setDesc]       = useState("");
+  const [color,      setColor]      = useState<typeof PROJECT_COLORS[number]>(PROJECT_COLORS[0]);
+  const [dueDate,    setDueDate]    = useState("");
+  const [aiLoading,  setAiLoading]  = useState(false);
+  const [milestones, setMilestones] = useState<string[]>([]);
 
-  /* ── Custom member list (free-text names) ── */
-  // Always start with the logged-in user pre-added
   const selfName = storeUser?.name ?? "";
   const [memberInput, setMemberInput] = useState("");
-  const [members, setMembers] = useState<string[]>(selfName ? [selfName] : []);
+  const [members, setMembers]         = useState<string[]>(selfName ? [selfName] : []);
 
   const addMember = () => {
     const trimmed = memberInput.trim();
@@ -39,18 +46,34 @@ export function NewProjectDialog() {
     setMembers((prev) => [...prev, trimmed]);
     setMemberInput("");
   };
-
-  const removeMember = (name: string) => {
-    // Don't allow removing yourself
-    if (name === selfName) return;
-    setMembers((prev) => prev.filter((m) => m !== name));
+  const removeMember = (n: string) => {
+    if (n === selfName) return;
+    setMembers((prev) => prev.filter((m) => m !== n));
   };
 
   const reset = () => {
     setName(""); setDesc(""); setColor(PROJECT_COLORS[0]);
-    setDueDate(""); setMemberInput("");
+    setDueDate(""); setMemberInput(""); setMilestones([]);
     setMembers(selfName ? [selfName] : []);
     setSuccess(false);
+  };
+
+  /* ── AI: Generate project description + milestones ── */
+  const handleGeneratePlan = async () => {
+    if (!name.trim()) { toast.warning("Enter a project name first."); return; }
+    setAiLoading(true);
+    try {
+      const plan = await generateProjectPlan(name.trim());
+      setDesc(plan.description);
+      setMilestones(plan.milestones);
+      toast.success("✨ Project plan generated!", {
+        description: `Description + ${plan.milestones.length} milestones ready.`,
+      });
+    } catch (err) {
+      toast.error("AI Error", { description: err instanceof Error ? err.message : "Failed." });
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,7 +82,6 @@ export function NewProjectDialog() {
     setLoading(true);
     await new Promise((r) => setTimeout(r, 400));
 
-    // Build minimal User objects from the free-text member names
     const memberUsers = members.map((m, i) => ({
       id: storeUser?.id ? (m === selfName ? storeUser.id : `custom-${i}`) : `custom-${i}`,
       name: m,
@@ -72,7 +94,7 @@ export function NewProjectDialog() {
     addProject(
       {
         name: name.trim(),
-        description: desc,
+        description: encodePlan(desc, milestones),
         color,
         dueDate: dueDate || undefined,
         members: memberUsers,
@@ -113,20 +135,69 @@ export function NewProjectDialog() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-            {/* Name */}
+
+            {/* ── AI Milestone Preview Card ──────────────────────────── */}
+            {milestones.length > 0 && (
+              <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/5 to-violet-500/5 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-primary/15 flex items-center justify-center">
+                    <Flag className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <span className="text-[12px] font-semibold text-primary">AI Project Milestones</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">{milestones.length} phases</span>
+                </div>
+                <ol className="space-y-1.5">
+                  {milestones.map((m, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="w-4 h-4 rounded-full bg-primary/20 text-primary text-[9px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        {i + 1}
+                      </span>
+                      <span className="text-[12px] text-foreground/80 leading-snug">{m}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            {/* Project name + AI button */}
             <div className="space-y-1.5">
               <Label htmlFor="project-name" className="text-xs font-medium">
                 Project name <span className="text-destructive">*</span>
               </Label>
-              <Input
-                id="project-name"
-                placeholder="e.g. Marketing Website Redesign"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="h-9"
-                autoFocus
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="project-name"
+                  placeholder="e.g. Marketing Website Redesign"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="h-9 flex-1 min-w-0"
+                  autoFocus
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3 shrink-0 gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
+                  onClick={handleGeneratePlan}
+                  disabled={aiLoading || !name.trim()}
+                  id="generate-project-plan-btn"
+                  title="Generate AI description + milestones"
+                >
+                  {aiLoading
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Sparkles className="w-3.5 h-3.5" />
+                  }
+                  <span className="hidden sm:inline text-[12px]">
+                    {milestones.length > 0 ? "Regen" : "Generate"}
+                  </span>
+                </Button>
+              </div>
+              {milestones.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  Click <Sparkles className="w-3 h-3 inline text-primary" /> to auto-generate a description and project milestones.
+                </p>
+              )}
             </div>
 
             {/* Description */}
@@ -148,15 +219,9 @@ export function NewProjectDialog() {
               <div className="flex items-center gap-2 flex-wrap">
                 {PROJECT_COLORS.map((c) => (
                   <button
-                    key={c}
-                    type="button"
-                    onClick={() => setColor(c)}
+                    key={c} type="button" onClick={() => setColor(c)}
                     className="w-6 h-6 rounded-full border-2 transition-all"
-                    style={{
-                      backgroundColor: c,
-                      borderColor: color === c ? "#fff" : "transparent",
-                      boxShadow: color === c ? `0 0 0 2px ${c}` : "none",
-                    }}
+                    style={{ backgroundColor: c, borderColor: color === c ? "#fff" : "transparent", boxShadow: color === c ? `0 0 0 2px ${c}` : "none" }}
                   />
                 ))}
               </div>
@@ -165,38 +230,22 @@ export function NewProjectDialog() {
             {/* Due date */}
             <div className="space-y-1.5">
               <Label htmlFor="project-due" className="text-xs font-medium">Due date</Label>
-              <Input
-                id="project-due"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="h-9"
-              />
+              <Input id="project-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-9" />
             </div>
 
-            {/* ── Custom team members ── */}
+            {/* Team members */}
             <div className="space-y-2">
               <Label className="text-xs font-medium">Team members</Label>
-
-              {/* Added members chips */}
               {members.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {members.map((m) => (
-                    <span
-                      key={m}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/15 border border-primary/30 text-primary"
-                    >
+                    <span key={m} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/15 border border-primary/30 text-primary">
                       <span className="w-4 h-4 rounded-full bg-gradient-to-br from-primary to-violet-600 text-[8px] text-white flex items-center justify-center font-bold shrink-0">
                         {m.charAt(0).toUpperCase()}
                       </span>
                       {m}
                       {m !== selfName && (
-                        <button
-                          type="button"
-                          onClick={() => removeMember(m)}
-                          className="ml-0.5 hover:text-destructive transition-colors"
-                          aria-label={`Remove ${m}`}
-                        >
+                        <button type="button" onClick={() => removeMember(m)} className="ml-0.5 hover:text-destructive transition-colors" aria-label={`Remove ${m}`}>
                           <X className="w-3 h-3" />
                         </button>
                       )}
@@ -204,42 +253,24 @@ export function NewProjectDialog() {
                   ))}
                 </div>
               )}
-
-              {/* Add member input */}
               <div className="flex gap-2">
                 <Input
-                  id="member-name-input"
-                  placeholder="Type a name and press Add…"
-                  value={memberInput}
-                  onChange={(e) => setMemberInput(e.target.value)}
+                  id="member-name-input" placeholder="Type a name and press Add…"
+                  value={memberInput} onChange={(e) => setMemberInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addMember(); } }}
                   className="h-8 text-[12px] flex-1"
                 />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={addMember}
-                  disabled={!memberInput.trim()}
-                  className="h-8 px-3 gap-1 text-xs"
-                  id="add-member-btn"
-                >
+                <Button type="button" size="sm" variant="outline" onClick={addMember} disabled={!memberInput.trim()} className="h-8 px-3 gap-1 text-xs" id="add-member-btn">
                   <UserPlus className="w-3.5 h-3.5" /> Add
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">
-                You are added automatically. Type names of teammates to add.
-              </p>
+              <p className="text-[11px] text-muted-foreground">You are added automatically.</p>
             </div>
 
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={loading || !name.trim()} className="gap-2 min-w-[130px]" id="create-project-btn">
-                {loading ? (
-                  <><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating…</>
-                ) : (
-                  <><Plus className="w-4 h-4" />Create Project</>
-                )}
+                {loading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating…</> : <><Plus className="w-4 h-4" />Create Project</>}
               </Button>
             </DialogFooter>
           </form>

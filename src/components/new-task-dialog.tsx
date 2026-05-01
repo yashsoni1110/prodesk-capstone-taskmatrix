@@ -15,6 +15,7 @@ import {
 import { Plus, Sparkles, CheckCircle2, Loader2, X } from "lucide-react";
 import { useTaskActions } from "@/store/task-store";
 import { useAuthStore } from "@/store/auth-store";
+import { useProjects } from "@/store/project-store";
 import type { TaskStatus } from "@/lib/data";
 import { generateSubSteps } from "@/lib/gemini";
 import { toast } from "sonner";
@@ -22,12 +23,14 @@ import { toast } from "sonner";
 interface NewTaskDialogProps {
   defaultStatus?: TaskStatus;
   triggerLabel?: string;
+  defaultProjectId?: string;
 }
 
-export function NewTaskDialog({ defaultStatus = "todo", triggerLabel }: NewTaskDialogProps) {
+export function NewTaskDialog({ defaultStatus = "todo", triggerLabel, defaultProjectId }: NewTaskDialogProps) {
   const { addTask } = useTaskActions();
   const supabaseUser = useAuthStore((s) => s.supabaseUser);
   const currentUser  = useAuthStore((s) => s.user);
+  const projects     = useProjects();
 
   const [open,      setOpen]      = useState(false);
   const [loading,   setLoading]   = useState(false);
@@ -37,6 +40,7 @@ export function NewTaskDialog({ defaultStatus = "todo", triggerLabel }: NewTaskD
   const [status,    setStatus]    = useState<TaskStatus>(defaultStatus);
   const [assignee,  setAssignee]  = useState("u1");
   const [dueDate,   setDueDate]   = useState("");
+  const [projectId, setProjectId] = useState(defaultProjectId ?? "");
   // AI sub-steps
   const [subSteps,  setSubSteps]  = useState<string[]>([]);
 
@@ -44,6 +48,7 @@ export function NewTaskDialog({ defaultStatus = "todo", triggerLabel }: NewTaskD
     setTitle(""); setPriority("medium");
     setStatus(defaultStatus); setAssignee("u1");
     setDueDate(""); setSubSteps([]);
+    setProjectId(defaultProjectId ?? "");
   };
 
   /* ── AI: Generate sub-steps ─────────────────────────────────────────────── */
@@ -87,6 +92,7 @@ export function NewTaskDialog({ defaultStatus = "todo", triggerLabel }: NewTaskD
         status,
         priority:    priority as "low" | "medium" | "high" | "critical",
         assigneeId:  assignee,
+        projectId:   projectId || undefined,
         dueDate:     dueDate || undefined,
         description: descriptionWithSteps,
         currentUser: currentUser ?? undefined,
@@ -186,6 +192,29 @@ export function NewTaskDialog({ defaultStatus = "todo", triggerLabel }: NewTaskD
               </div>
             )}
           </div>
+
+          {/* Project */}
+          {projects.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Project</Label>
+              <Select value={projectId} onValueChange={(v) => setProjectId(v === "none" ? "" : v)}>
+                <SelectTrigger className="h-9 w-full" id="task-project-select">
+                  <SelectValue placeholder="No project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— No project —</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                        {p.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Priority + Status */}
           <div className="grid grid-cols-2 gap-3">

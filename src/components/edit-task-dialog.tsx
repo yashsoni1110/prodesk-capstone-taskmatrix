@@ -13,8 +13,9 @@ import {
   Select, SelectContent, SelectItem,
   SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Trash2, Sparkles, CheckCircle2, Circle } from "lucide-react";
+import { Loader2, Trash2, Sparkles, CheckCircle2, Circle, FolderKanban } from "lucide-react";
 import { useTaskActions } from "@/store/task-store";
+import { useProjects } from "@/store/project-store";
 import type { Task, TaskStatus, Priority } from "@/lib/data";
 import { toast } from "sonner";
 import { generateSubSteps } from "@/lib/gemini";
@@ -45,6 +46,7 @@ interface EditTaskDialogProps {
 
 export function EditTaskDialog({ task, open, onClose }: EditTaskDialogProps) {
   const { updateTask, deleteTask } = useTaskActions();
+  const projects = useProjects();
 
   const [title,      setTitle]      = useState(task.title);
   const [description,setDescription]= useState(task.description);
@@ -52,6 +54,7 @@ export function EditTaskDialog({ task, open, onClose }: EditTaskDialogProps) {
   const [status,     setStatus]     = useState<TaskStatus>(task.status);
   const [assignee,   setAssignee]   = useState(task.assignee.id);
   const [dueDate,    setDueDate]    = useState(task.dueDate);
+  const [projectId,  setProjectId]  = useState(task.projectId ?? "");
   const [loading,    setLoading]    = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
 
@@ -68,6 +71,7 @@ export function EditTaskDialog({ task, open, onClose }: EditTaskDialogProps) {
     setStatus(task.status);
     setAssignee(task.assignee.id);
     setDueDate(task.dueDate);
+    setProjectId(task.projectId ?? "");
     setConfirmDel(false);
 
     const { steps } = parseDescription(task.description ?? "");
@@ -120,6 +124,7 @@ export function EditTaskDialog({ task, open, onClose }: EditTaskDialogProps) {
       priority,
       status,
       dueDate,
+      projectId,
       // @ts-expect-error – store resolves assigneeId internally
       assigneeId: assignee,
     });
@@ -246,6 +251,31 @@ export function EditTaskDialog({ task, open, onClose }: EditTaskDialogProps) {
               </p>
             )}
           </div>
+
+          {/* Project — show if projects exist */}
+          {projects.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <FolderKanban className="w-3 h-3" /> Project
+              </Label>
+              <Select value={projectId || "none"} onValueChange={(v) => setProjectId(v === "none" ? "" : v)}>
+                <SelectTrigger className="h-9 w-full text-[13px]" id="edit-task-project-select">
+                  <SelectValue placeholder="No project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— No project —</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+                        {p.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Description — only show if no AI steps */}
           {aiSteps.length === 0 && (

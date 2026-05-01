@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { NewTaskDialog } from "@/components/new-task-dialog";
 import { EditTaskDialog } from "@/components/edit-task-dialog";
@@ -8,16 +9,18 @@ import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import {
   MoreHorizontal, Clock, MessageSquare,
   AlertCircle, CheckCircle2, Circle, Plus,
-  Layers, Eye,
+  Layers, Eye, FolderKanban, ArrowLeft,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent,
   DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTasks, useTaskActions } from "@/store/task-store";
+import { useProjects, useProjectActions } from "@/store/project-store";
 import { useAuthStore } from "@/store/auth-store";
 import type { Task, TaskStatus } from "@/lib/data";
 import { toast } from "sonner";
+import Link from "next/link";
 
 /* ── Column config ─────────────────────────────────────────────────────────── */
 const COLUMNS: {
@@ -56,11 +59,15 @@ function TaskCard({
   index,
   onEdit,
   onDelete,
+  projectName,
+  projectColor,
 }: {
   taskId: string;
   index: number;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
+  projectName?: string;
+  projectColor?: string;
 }) {
   const task = useTasks().find((t) => t.id === taskId);
   const { updateTask } = useTaskActions();
@@ -103,24 +110,12 @@ function TaskCard({
                     Edit task
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => updateTask(task.id, { status: "todo" })}>
-                    Move → To Do
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => updateTask(task.id, { status: "in-progress" })}>
-                    Move → In Progress
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => updateTask(task.id, { status: "review" })}>
-                    Move → Review
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => updateTask(task.id, { status: "done" })}>
-                    Move → Done
-                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => updateTask(task.id, { status: "todo" })}>Move → To Do</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => updateTask(task.id, { status: "in-progress" })}>Move → In Progress</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => updateTask(task.id, { status: "review" })}>Move → Review</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => updateTask(task.id, { status: "done" })}>Move → Done</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="destructive"
-                    onSelect={() => onDelete(task.id)}
-                    id={`delete-task-${task.id}`}
-                  >
+                  <DropdownMenuItem variant="destructive" onSelect={() => onDelete(task.id)} id={`delete-task-${task.id}`}>
                     Delete task…
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -134,6 +129,19 @@ function TaskCard({
             >
               {task.title}
             </p>
+
+            {/* Project badge — only shown on "All Tasks" board */}
+            {projectName && (
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-medium rounded-md px-1.5 py-0.5 border"
+                style={{
+                  color:            projectColor ?? "#888",
+                  backgroundColor:  (projectColor ?? "#888") + "18",
+                  borderColor:      (projectColor ?? "#888") + "40",
+                }}>
+                <FolderKanban className="w-2.5 h-2.5" />
+                {projectName}
+              </span>
+            )}
 
             {/* Tags */}
             {task.tags.length > 0 && (
@@ -178,21 +186,30 @@ function KanbanColumn({
   col,
   onEdit,
   onDelete,
+  filterProjectId,
+  projects,
 }: {
   col: (typeof COLUMNS)[number];
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
+  filterProjectId: string | null;
+  projects: ReturnType<typeof useProjects>;
 }) {
-  const columnTasks = useTasks().filter((t) => t.status === col.id);
+  const allTasks    = useTasks();
+  const columnTasks = allTasks.filter((t) => {
+    if (t.status !== col.id) return false;
+    if (filterProjectId) return t.projectId === filterProjectId;
+    return true;
+  });
   const Icon = col.icon;
 
   return (
-    <div className="flex flex-col min-w-0 min-w-[220px]">
+    <div className="flex flex-col min-w-0">
       <div className={`flex items-center gap-2 px-3 py-2.5 rounded-lg mb-2 ${col.header}`}>
         <Icon className={`w-3.5 h-3.5 ${col.accent} shrink-0`} strokeWidth={1.8} />
         <span className="text-[12px] font-semibold flex-1">{col.label}</span>
         <span className={`text-[11px] font-bold tabular-nums ${col.accent}`}>{columnTasks.length}</span>
-        <NewTaskDialog defaultStatus={col.id} triggerLabel="" />
+        <NewTaskDialog defaultStatus={col.id} triggerLabel="" defaultProjectId={filterProjectId ?? ""} />
       </div>
 
       <Droppable droppableId={col.id}>
@@ -205,14 +222,26 @@ function KanbanColumn({
               snapshot.isDraggingOver ? `ring-2 ${col.ring} bg-muted/50` : "bg-muted/15",
             ].join(" ")}
           >
-            {columnTasks.map((task, i) => (
-              <TaskCard key={task.id} taskId={task.id} index={i} onEdit={onEdit} onDelete={onDelete} />
-            ))}
+            {columnTasks.map((task, i) => {
+              const proj     = projects.find((p) => p.id === task.projectId);
+              const showBadge = !filterProjectId && !!proj;
+              return (
+                <TaskCard
+                  key={task.id}
+                  taskId={task.id}
+                  index={i}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  projectName={showBadge ? proj!.name : undefined}
+                  projectColor={showBadge ? proj!.color : undefined}
+                />
+              );
+            })}
             {provided.placeholder}
 
             {columnTasks.length === 0 && !snapshot.isDraggingOver && (
-              <div className="flex flex-col items-center justify-center h-24 gap-2 cursor-pointer group" onClick={() => {}}>
-                <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center group-hover:bg-muted/70 transition-colors">
+              <div className="flex flex-col items-center justify-center h-24 gap-2">
+                <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
                   <Plus className="w-3.5 h-3.5 text-muted-foreground" />
                 </div>
                 <span className="text-[11px] text-muted-foreground/60">{col.emptyText}</span>
@@ -226,8 +255,12 @@ function KanbanColumn({
 }
 
 /* ── Summary bar ────────────────────────────────────────────────────────────── */
-function BoardSummary() {
-  const tasks  = useTasks();
+function BoardSummary({ filterProjectId }: { filterProjectId: string | null }) {
+  const allTasks = useTasks();
+  const tasks    = filterProjectId
+    ? allTasks.filter((t) => t.projectId === filterProjectId)
+    : allTasks;
+
   const total  = tasks.length;
   const done   = tasks.filter((t) => t.status === "done").length;
   const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -257,17 +290,27 @@ function BoardSummary() {
 /* ── Page ───────────────────────────────────────────────────────────────────── */
 export default function KanbanBoard() {
   const { moveTask, reorderTasks, deleteTask, fetchTasks } = useTaskActions();
-  const supabaseUser = useAuthStore((s) => s.supabaseUser);
-  const [editTask, setEditTask] = useState<Task | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { fetchProjects } = useProjectActions();
+  const supabaseUser  = useAuthStore((s) => s.supabaseUser);
+  const projects      = useProjects();
+  const searchParams  = useSearchParams();
+  const filterProjectId = searchParams.get("project"); // null = show all
 
-  // Fetch tasks from Supabase on mount / when user changes
+  const [editTask,         setEditTask]         = useState<Task | null>(null);
+  const [confirmDeleteId,  setConfirmDeleteId]  = useState<string | null>(null);
+  const [isDeleting,       setIsDeleting]       = useState(false);
+
+  // Fetch tasks AND projects on mount so project badges always work
   useEffect(() => {
     if (supabaseUser?.id) {
       fetchTasks(supabaseUser.id);
+      fetchProjects(supabaseUser.id);
     }
-  }, [supabaseUser?.id, fetchTasks]);
+  }, [supabaseUser?.id, fetchTasks, fetchProjects]);
+
+  const activeProject = filterProjectId
+    ? projects.find((p) => p.id === filterProjectId)
+    : null;
 
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -297,23 +340,54 @@ export default function KanbanBoard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Tasks</h1>
+          {/* Breadcrumb when filtering by project */}
+          {activeProject ? (
+            <div className="flex items-center gap-2 mb-1">
+              <Link
+                href="/projects"
+                className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> All Projects
+              </Link>
+              <span className="text-muted-foreground/40 text-[12px]">/</span>
+              <span
+                className="text-[12px] font-semibold px-2 py-0.5 rounded-md"
+                style={{ color: activeProject.color, backgroundColor: activeProject.color + "20" }}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeProject.color }} />
+                  {activeProject.name}
+                </span>
+              </span>
+            </div>
+          ) : null}
+          <h1 className="text-xl font-semibold tracking-tight">
+            {activeProject ? `${activeProject.name} Board` : "Tasks"}
+          </h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">
-            Drag cards between columns · click a card to edit
+            {activeProject
+              ? `Showing tasks for "${activeProject.name}" · drag cards between columns`
+              : "Drag cards between columns · click a card to edit"}
           </p>
         </div>
-        <NewTaskDialog />
+        <NewTaskDialog defaultProjectId={filterProjectId ?? ""} />
       </div>
 
       {/* Summary */}
-      <BoardSummary />
+      <BoardSummary filterProjectId={filterProjectId} />
 
-      {/* Board — horizontally scrollable on small screens */}
+      {/* Board */}
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-4 flex-1">
           {COLUMNS.map((col) => (
             <div key={col.id} className="flex-none w-[240px] sm:flex-1 sm:min-w-[200px] sm:max-w-[280px] flex flex-col">
-              <KanbanColumn col={col} onEdit={setEditTask} onDelete={setConfirmDeleteId} />
+              <KanbanColumn
+                col={col}
+                onEdit={setEditTask}
+                onDelete={setConfirmDeleteId}
+                filterProjectId={filterProjectId}
+                projects={projects}
+              />
             </div>
           ))}
         </div>
@@ -328,7 +402,7 @@ export default function KanbanBoard() {
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation */}
       <ConfirmDeleteDialog
         open={!!confirmDeleteId}
         onClose={() => setConfirmDeleteId(null)}

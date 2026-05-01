@@ -26,7 +26,7 @@ function rowToTask(row: TaskRow): Task {
     description: row.description ?? "",
     status: row.status as Task["status"],
     priority: row.priority as Task["priority"],
-    projectId: row.project_id ?? "p1",
+    projectId: row.project_id && isValidUUID(row.project_id) ? row.project_id : "",
     dueDate: row.due_date
       ? new Date(row.due_date).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0],
@@ -111,7 +111,12 @@ export async function updateTaskInDB(
   if (changes.description !== undefined) patch.description = changes.description;
   if (changes.status !== undefined) patch.status = changes.status;
   if (changes.priority !== undefined) patch.priority = changes.priority;
-  if (changes.projectId !== undefined) patch.project_id = changes.projectId;
+  if (changes.projectId !== undefined) {
+    // Only save a UUID-valid projectId; otherwise clear it
+    patch.project_id = changes.projectId && isValidUUID(changes.projectId)
+      ? changes.projectId
+      : null;
+  }
   if (changes.dueDate !== undefined) patch.due_date = changes.dueDate;
   if (changes.tags !== undefined) patch.tags = changes.tags;
   if (changes.assignee !== undefined) {
