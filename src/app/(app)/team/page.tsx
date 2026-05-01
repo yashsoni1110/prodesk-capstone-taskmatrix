@@ -24,6 +24,7 @@ import { EditMemberDialog } from "@/components/edit-member-dialog";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { MOCK_USERS } from "@/lib/data";
 import type { User } from "@/lib/data";
+import { toast } from "sonner";
 
 const ROLE_STYLES: Record<string, { badge: string; grad: string }> = {
   admin:     { badge: "bg-violet-500/15 text-violet-400 border-violet-500/30",  grad: "from-violet-500 to-purple-600"  },
@@ -65,11 +66,15 @@ export default function TeamPage() {
 
   const handleDeleteConfirm = async () => {
     if (!deleteMemberId) return;
+    const member = rosterBase.find((m) => m.id === deleteMemberId);
     setIsDeleting(true);
     await new Promise((r) => setTimeout(r, 400));
     removeMember(deleteMemberId);
     setIsDeleting(false);
     setDeleteMemberId(null);
+    toast.success("👥 Member removed", {
+      description: member ? `${member.name} was removed from your team.` : "Member removed.",
+    });
   };
 
   /* Is this member an invited (editable) one? */

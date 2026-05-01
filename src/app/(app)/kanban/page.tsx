@@ -17,6 +17,7 @@ import {
 import { useTasks, useTaskActions } from "@/store/task-store";
 import { useAuthStore } from "@/store/auth-store";
 import type { Task, TaskStatus } from "@/lib/data";
+import { toast } from "sonner";
 
 /* ── Column config ─────────────────────────────────────────────────────────── */
 const COLUMNS: {
@@ -285,10 +286,10 @@ export default function KanbanBoard() {
     if (!confirmDeleteId) return;
     setIsDeleting(true);
     deleteTask(confirmDeleteId);
-    // Brief wait so the UI feels responsive
     await new Promise((r) => setTimeout(r, 400));
     setIsDeleting(false);
     setConfirmDeleteId(null);
+    toast.error("🗑️ Task deleted", { description: "The task was permanently removed." });
   };
 
   return (
@@ -311,7 +312,7 @@ export default function KanbanBoard() {
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex gap-3 overflow-x-auto pb-4 flex-1">
           {COLUMNS.map((col) => (
-            <div key={col.id} className="flex-1 min-w-[200px] max-w-[280px] flex flex-col">
+            <div key={col.id} className="flex-none w-[240px] sm:flex-1 sm:min-w-[200px] sm:max-w-[280px] flex flex-col">
               <KanbanColumn col={col} onEdit={setEditTask} onDelete={setConfirmDeleteId} />
             </div>
           ))}

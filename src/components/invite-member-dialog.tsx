@@ -8,8 +8,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, CheckCircle2 } from "lucide-react";
+import { UserPlus, Loader2 } from "lucide-react";
 import { useTeamStore } from "@/store/team-store";
+import { toast } from "sonner";
 
 interface Props {
   /** Override the trigger button if needed */
@@ -42,10 +43,10 @@ export function InviteMemberDialog({ trigger }: Props) {
     inviteMember({ name: name.trim(), email: email.trim() });
 
     setLoading(false);
+    toast.success("👥 Member invited!", { description: `${name.trim()} added to your team.` });
     setSuccess(true);
 
-    // Close after showing success
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 600));
     setOpen(false);
     reset();
   };
@@ -60,7 +61,7 @@ export function InviteMemberDialog({ trigger }: Props) {
         )}
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-sm" id="invite-member-dialog">
+      <DialogContent className="sm:max-w-sm w-[calc(100vw-2rem)]" id="invite-member-dialog">
         <DialogHeader>
           <DialogTitle>Invite a Team Member</DialogTitle>
           <DialogDescription>
@@ -127,7 +128,7 @@ export function InviteMemberDialog({ trigger }: Props) {
                 id="send-invite-btn"
               >
                 {loading ? (
-                  <><span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />Sending…</>
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" />Sending…</>
                 ) : (
                   <><UserPlus className="w-3.5 h-3.5" />Send Invite</>
                 )}

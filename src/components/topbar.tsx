@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { useUnreadCount } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
+import { toast } from "sonner";
 
 interface TopbarProps {
   mobileTrigger?: React.ReactNode;
@@ -41,7 +42,10 @@ export function Topbar({ mobileTrigger }: TopbarProps) {
       : "?");
 
   const handleLogout = async () => {
+    toast.loading("Signing out…", { id: "logout" });
     await logout();
+    toast.dismiss("logout");
+    toast.success("Signed out successfully");
     router.replace("/");
   };
 
@@ -49,8 +53,8 @@ export function Topbar({ mobileTrigger }: TopbarProps) {
     <header className="h-14 border-b border-border/60 bg-background/95 backdrop-blur-sm sticky top-0 z-50 flex items-center gap-3 px-4 shrink-0">
       {mobileTrigger}
 
-      {/* Search */}
-      <div className="relative max-w-[280px] flex-1">
+      {/* Search — hidden on very small screens */}
+      <div className="relative max-w-[280px] flex-1 hidden sm:block">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/60" />
         <Input
           id="global-search"

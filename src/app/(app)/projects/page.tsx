@@ -25,6 +25,7 @@ import { NewProjectDialog } from "@/components/new-project-dialog";
 import { EditProjectDialog } from "@/components/edit-project-dialog";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import type { Project } from "@/lib/data";
+import { toast } from "sonner";
 
 export default function ProjectsPage() {
   const projects = useProjects();
@@ -51,11 +52,15 @@ export default function ProjectsPage() {
 
   const handleDeleteConfirm = async () => {
     if (!confirmDeleteId) return;
+    const proj = projects.find((p) => p.id === confirmDeleteId);
     setIsDeleting(true);
     deleteProject(confirmDeleteId);
     await new Promise((r) => setTimeout(r, 400));
     setIsDeleting(false);
     setConfirmDeleteId(null);
+    toast.error("🗑️ Project deleted", {
+      description: proj ? `"${proj.name}" was permanently removed.` : "Project removed.",
+    });
   };
 
   /* ── Summary stats ── */

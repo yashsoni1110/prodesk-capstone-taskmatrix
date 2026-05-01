@@ -155,3 +155,61 @@
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0);   }
 }
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+/* ── Animation utilities ─────────────────────────────────────────────────────── */
+.animate-fade-up    { animation: fade-up    0.25s ease both; }
+.animate-scale-in   { animation: scale-in   0.2s  ease both; }
+.animate-slide-in-r { animation: slide-in-right 0.25s ease both; }
+
+/* ── Premium button micro-interactions ─────────────────────────────────────── */
+button, [role="button"] {
+  transition: transform 80ms ease, opacity 120ms ease;
+}
+button:active:not(:disabled), [role="button"]:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ── Card hover lift ────────────────────────────────────────────────────────── */
+.card-hover {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Mobile: prevent horizontal overflow ─────────────────────────────────────── */
+@media (max-width: 640px) {
+  body { overflow-x: hidden; }
+
+  /* Make sure dialogs never exceed viewport */
+  [data-radix-dialog-content] {
+    max-width: calc(100vw - 2rem) !important;
+  }
+
+  /* Prevent long words from breaking mobile layout */
+  p, span, h1, h2, h3 {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+}
+
+/* ── Focus-visible ring (accessibility) ─────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid oklch(var(--primary) / 0.5);
+  outline-offset: 2px;
+}
+
+/* ── Sonner toast overrides ─────────────────────────────────────────────────── */
+[data-sonner-toaster] {
+  --border-radius: 0.625rem;
+  font-family: var(--font-geist-sans);
+}

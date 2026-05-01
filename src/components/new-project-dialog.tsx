@@ -9,9 +9,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, CheckCircle2, X, UserPlus } from "lucide-react";
+import { Plus, X, UserPlus, Loader2 } from "lucide-react";
 import { useProjectActions, PROJECT_COLORS } from "@/store/project-store";
 import { useAuthStore } from "@/store/auth-store";
+import { toast } from "sonner";
 
 export function NewProjectDialog() {
   const { addProject } = useProjectActions();
@@ -80,8 +81,9 @@ export function NewProjectDialog() {
     );
 
     setLoading(false);
+    toast.success("🚀 Project created!", { description: `"${name.trim()}" is ready to go.` });
     setSuccess(true);
-    await new Promise((r) => setTimeout(r, 700));
+    await new Promise((r) => setTimeout(r, 600));
     setOpen(false);
     reset();
   };
@@ -95,7 +97,7 @@ export function NewProjectDialog() {
         <Plus className="w-4 h-4" /> New Project
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md" id="new-project-dialog">
+      <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto" id="new-project-dialog">
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>Set up a new project workspace for your team.</DialogDescription>
@@ -234,7 +236,7 @@ export function NewProjectDialog() {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button type="submit" disabled={loading || !name.trim()} className="gap-2 min-w-[130px]" id="create-project-btn">
                 {loading ? (
-                  <><span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />Creating…</>
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" />Creating…</>
                 ) : (
                   <><Plus className="w-4 h-4" />Create Project</>
                 )}
