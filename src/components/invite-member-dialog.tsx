@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Loader2 } from "lucide-react";
+import { UserPlus, Loader2, CheckCircle2 } from "lucide-react";
 import { useTeamStore } from "@/store/team-store";
 import { toast } from "sonner";
 
