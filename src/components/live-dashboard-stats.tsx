@@ -45,7 +45,7 @@ export function LiveDashboardStats() {
               <span>Sprint progress</span>
               <span>{completionPct}%</span>
             </div>
-            <Progress value={completionPct} className="h-1.5" />
+            <Progress value={completionPct} className="h-1.5" aria-label={`Sprint progress: ${completionPct}%`} />
           </div>
         </CardContent>
       </Card>

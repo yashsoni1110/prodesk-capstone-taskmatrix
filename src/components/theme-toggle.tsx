@@ -29,6 +29,7 @@ export function ThemeToggle() {
       <button
         className="inline-flex items-center justify-center rounded-[var(--radius-md)] border border-input bg-background shadow-sm h-9 w-9"
         aria-label="Toggle theme"
+        disabled
       >
         <span className="h-4 w-4" />
       </button>

@@ -2,15 +2,25 @@
 
 
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { PriorityBadge } from "@/components/task-badges";
 import { NewTaskDialog } from "@/components/new-task-dialog";
 import { LiveDashboardStats } from "@/components/live-dashboard-stats";
-import { AnalyticsChart } from "@/components/analytics-chart";
+
+// Lazy-load Recharts bundle — keeps it out of the critical-path JS chunk
+const AnalyticsChart = dynamic(
+  () => import("@/components/analytics-chart").then((m) => ({ default: m.AnalyticsChart })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[320px] rounded-xl border border-border/60 bg-muted/20 animate-pulse" />
+    ),
+  }
+);
 import {
   Clock, ArrowRight, MessageSquare,
   FolderKanban, Plus, ArrowUpRight, ExternalLink,
@@ -268,7 +278,7 @@ export default function DashboardPage() {
                           {pct}%
                         </span>
                       </div>
-                      <Progress value={pct} className="h-1 mb-3" />
+                      <Progress value={pct} className="h-1 mb-3" aria-label={`${project.name} progress: ${pct}%`} />
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           {project.members.slice(0, 4).map((m) => (
@@ -381,7 +391,7 @@ export default function DashboardPage() {
                         </span>
                         <span className="text-[10px] text-muted-foreground/60 tabular-nums ml-2">{done}/{userTasks.length}</span>
                       </div>
-                      <Progress value={pct} className="h-1" />
+                      <Progress value={pct} className="h-1" aria-label={`${u.name} workload: ${pct}% complete`} />
                     </div>
                   </div>
                 );
