@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar, MobileSidebarTrigger } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
@@ -42,7 +42,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <p className="text-[11px] text-muted-foreground animate-pulse">Initializing session...</p>
               </div>
             ) : (
-              children
+              // Suspense lets Next.js stream page content to the browser
+              // while client-side JS is still evaluating — pages render
+              // their static shell immediately, reducing Time to Interactive.
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center h-[60vh]">
+                    <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                  </div>
+                }
+              >
+                {children}
+              </Suspense>
             )}
           </div>
         </main>

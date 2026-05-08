@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { DropResult } from "@hello-pangea/dnd";
@@ -18,9 +18,19 @@ const Draggable = dynamic(
   () => import("@hello-pangea/dnd").then((m) => m.Draggable),
   { ssr: false }
 );
-import { NewTaskDialog } from "@/components/new-task-dialog";
-import { EditTaskDialog } from "@/components/edit-task-dialog";
-import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
+// ── Lazy-load dialog bundles — they're never needed on first paint ───────────
+const NewTaskDialog = dynamic(
+  () => import("@/components/new-task-dialog").then((m) => ({ default: m.NewTaskDialog })),
+  { ssr: false }
+);
+const EditTaskDialog = dynamic(
+  () => import("@/components/edit-task-dialog").then((m) => ({ default: m.EditTaskDialog })),
+  { ssr: false }
+);
+const ConfirmDeleteDialog = dynamic(
+  () => import("@/components/confirm-delete-dialog").then((m) => ({ default: m.ConfirmDeleteDialog })),
+  { ssr: false }
+);
 import {
   MoreHorizontal, Clock, MessageSquare,
   AlertCircle, CheckCircle2, Circle, Plus,
@@ -69,7 +79,9 @@ const ROLE_GRAD: Record<string, string> = {
 };
 
 /* ── Task Card ──────────────────────────────────────────────────────────────── */
-function TaskCard({
+// memo: TaskCard renders once per card in every column. Without memo, a single
+// drag-drop causes ALL cards in ALL columns to re-render simultaneously.
+const TaskCard = memo(function TaskCard({
   taskId,
   index,
   onEdit,
@@ -194,10 +206,11 @@ function TaskCard({
       )}
     </Draggable>
   );
-}
+});
 
 /* ── Column ──────────────────────────────────────────────────────────────────── */
-function KanbanColumn({
+// memo: prevents columns from re-rendering when an unrelated column changes
+const KanbanColumn = memo(function KanbanColumn({
   col,
   onEdit,
   onDelete,
@@ -210,12 +223,16 @@ function KanbanColumn({
   filterProjectId: string | null;
   projects: ReturnType<typeof useProjects>;
 }) {
-  const allTasks    = useTasks();
-  const columnTasks = allTasks.filter((t) => {
-    if (t.status !== col.id) return false;
-    if (filterProjectId) return t.projectId === filterProjectId;
-    return true;
-  });
+  const allTasks = useTasks();
+  // useMemo: recompute only when the task list or filter changes
+  const columnTasks = useMemo(
+    () => allTasks.filter((t) => {
+      if (t.status !== col.id) return false;
+      if (filterProjectId) return t.projectId === filterProjectId;
+      return true;
+    }),
+    [allTasks, col.id, filterProjectId]
+  );
   const Icon = col.icon;
 
   return (
@@ -267,27 +284,30 @@ function KanbanColumn({
       </Droppable>
     </div>
   );
-}
+});
 
 /* ── Summary bar ────────────────────────────────────────────────────────────── */
-function BoardSummary({ filterProjectId }: { filterProjectId: string | null }) {
+// memo: only re-renders when filterProjectId changes, not on every task drag
+const BoardSummary = memo(function BoardSummary({ filterProjectId }: { filterProjectId: string | null }) {
   const allTasks = useTasks();
-  const tasks    = filterProjectId
-    ? allTasks.filter((t) => t.projectId === filterProjectId)
-    : allTasks;
-
-  const total  = tasks.length;
-  const done   = tasks.filter((t) => t.status === "done").length;
-  const pct    = total > 0 ? Math.round((done / total) * 100) : 0;
-
-  const counts = [
-    { label: "Total",       val: total,                                                  dot: "bg-slate-400"   },
-    { label: "Backlog",     val: tasks.filter((t) => t.status === "backlog").length,     dot: "bg-slate-500"   },
-    { label: "To Do",       val: tasks.filter((t) => t.status === "todo").length,        dot: "bg-blue-500"    },
-    { label: "In Progress", val: tasks.filter((t) => t.status === "in-progress").length, dot: "bg-violet-500"  },
-    { label: "Review",      val: tasks.filter((t) => t.status === "review").length,      dot: "bg-amber-500"   },
-    { label: "Done",        val: done,                                                   dot: "bg-emerald-500" },
-  ];
+  // Single useMemo replaces 6 separate .filter() calls on every render
+  const { counts, pct } = useMemo(() => {
+    const tasks = filterProjectId
+      ? allTasks.filter((t) => t.projectId === filterProjectId)
+      : allTasks;
+    const total = tasks.length;
+    const done  = tasks.filter((t) => t.status === "done").length;
+    const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+    const counts = [
+      { label: "Total",       val: total,                                                  dot: "bg-slate-400"   },
+      { label: "Backlog",     val: tasks.filter((t) => t.status === "backlog").length,     dot: "bg-slate-500"   },
+      { label: "To Do",       val: tasks.filter((t) => t.status === "todo").length,        dot: "bg-blue-500"    },
+      { label: "In Progress", val: tasks.filter((t) => t.status === "in-progress").length, dot: "bg-violet-500"  },
+      { label: "Review",      val: tasks.filter((t) => t.status === "review").length,      dot: "bg-amber-500"   },
+      { label: "Done",        val: done,                                                   dot: "bg-emerald-500" },
+    ];
+    return { counts, pct };
+  }, [allTasks, filterProjectId]);
 
   return (
     <div className="flex flex-wrap items-center gap-4 px-4 py-2.5 rounded-lg border border-border/50 bg-card text-[11px] text-muted-foreground">
@@ -300,7 +320,7 @@ function BoardSummary({ filterProjectId }: { filterProjectId: string | null }) {
       <span className="ml-auto text-[12px] text-primary font-semibold">{pct}% complete</span>
     </div>
   );
-}
+});
 
 /* ── Page ───────────────────────────────────────────────────────────────────── */
 export default function KanbanBoard() {
@@ -323,11 +343,15 @@ export default function KanbanBoard() {
     }
   }, [supabaseUser?.id, fetchTasks, fetchProjects]);
 
-  const activeProject = filterProjectId
-    ? projects.find((p) => p.id === filterProjectId)
-    : null;
+  // useMemo: avoids re-scanning the projects array on every state update
+  const activeProject = useMemo(
+    () => filterProjectId ? projects.find((p) => p.id === filterProjectId) ?? null : null,
+    [filterProjectId, projects]
+  );
 
-  const handleDragEnd = (result: DropResult) => {
+  // useCallback: stable reference prevents KanbanColumn from re-rendering
+  // when parent state (editTask, isDeleting) changes
+  const handleDragEnd = useCallback((result: DropResult) => {
     const { destination, source, draggableId } = result;
     if (!destination) return;
     const sameCol   = destination.droppableId === source.droppableId;
@@ -338,9 +362,9 @@ export default function KanbanBoard() {
     } else {
       moveTask(draggableId, destination.droppableId as TaskStatus);
     }
-  };
+  }, [reorderTasks, moveTask]);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (!confirmDeleteId) return;
     setIsDeleting(true);
     deleteTask(confirmDeleteId);
@@ -348,7 +372,13 @@ export default function KanbanBoard() {
     setIsDeleting(false);
     setConfirmDeleteId(null);
     toast.error("🗑️ Task deleted", { description: "The task was permanently removed." });
-  };
+  }, [confirmDeleteId, deleteTask]);
+
+  // Stable handler refs so memoized TaskCard/KanbanColumn don't re-render
+  const handleEditTask    = useCallback((task: Task) => setEditTask(task),         []);
+  const handleDeleteTask  = useCallback((id: string)  => setConfirmDeleteId(id),   []);
+  const handleCloseEdit   = useCallback(() => setEditTask(null),                    []);
+  const handleCloseDelete = useCallback(() => setConfirmDeleteId(null),             []);
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -398,8 +428,8 @@ export default function KanbanBoard() {
             <div key={col.id} className="flex-none w-[240px] sm:flex-1 sm:min-w-[200px] sm:max-w-[280px] flex flex-col">
               <KanbanColumn
                 col={col}
-                onEdit={setEditTask}
-                onDelete={setConfirmDeleteId}
+                onEdit={handleEditTask}
+                onDelete={handleDeleteTask}
                 filterProjectId={filterProjectId}
                 projects={projects}
               />
@@ -413,14 +443,14 @@ export default function KanbanBoard() {
         <EditTaskDialog
           task={editTask}
           open={!!editTask}
-          onClose={() => setEditTask(null)}
+          onClose={handleCloseEdit}
         />
       )}
 
       {/* Delete Confirmation */}
       <ConfirmDeleteDialog
         open={!!confirmDeleteId}
-        onClose={() => setConfirmDeleteId(null)}
+        onClose={handleCloseDelete}
         onConfirm={handleDeleteConfirm}
         title="Delete Task"
         description="This task will be permanently deleted. This action cannot be undone."

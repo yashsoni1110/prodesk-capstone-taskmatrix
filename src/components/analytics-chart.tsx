@@ -153,16 +153,19 @@ export function AnalyticsChart() {
                 type="monotone" dataKey="total"
                 name="Total" stroke="#8b5cf6" strokeWidth={2}
                 fill="url(#gradTotal)" dot={false} activeDot={{ r: 4, strokeWidth: 0 }}
+                isAnimationActive={false}
               />
               <Area
                 type="monotone" dataKey="active"
                 name="In Progress" stroke="#3b82f6" strokeWidth={2}
                 fill="url(#gradActive)" dot={false} activeDot={{ r: 4, strokeWidth: 0 }}
+                isAnimationActive={false}
               />
               <Area
                 type="monotone" dataKey="done"
                 name="Done" stroke="#10b981" strokeWidth={2}
                 fill="url(#gradDone)" dot={false} activeDot={{ r: 4, strokeWidth: 0 }}
+                isAnimationActive={false}
               />
             </AreaChart>
           </ResponsiveContainer>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useTasks } from "@/store/task-store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -13,12 +14,23 @@ import {
  * Re-renders whenever tasks change (add / delete / move).
  */
 export function LiveDashboardStats() {
-  const tasks         = useTasks();
-  const totalTasks    = tasks.length;
-  const doneTasks     = tasks.filter((t) => t.status === "done").length;
-  const pendingTasks  = tasks.filter((t) => t.status !== "done").length;
-  const inProgressTasks = tasks.filter((t) => t.status === "in-progress").length;
-  const completionPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+  const tasks = useTasks();
+
+  // Single useMemo pass — replaces 7 separate .filter() calls on every render.
+  // Re-computes only when the tasks array reference changes.
+  const { totalTasks, doneTasks, pendingTasks, inProgressTasks, completionPct,
+          backlogCount, todoCount, reviewCount } = useMemo(() => {
+    const totalTasks      = tasks.length;
+    const doneTasks       = tasks.filter((t) => t.status === "done").length;
+    const pendingTasks    = tasks.filter((t) => t.status !== "done").length;
+    const inProgressTasks = tasks.filter((t) => t.status === "in-progress").length;
+    const backlogCount    = tasks.filter((t) => t.status === "backlog").length;
+    const todoCount       = tasks.filter((t) => t.status === "todo").length;
+    const reviewCount     = tasks.filter((t) => t.status === "review").length;
+    const completionPct   = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+    return { totalTasks, doneTasks, pendingTasks, inProgressTasks,
+             completionPct, backlogCount, todoCount, reviewCount };
+  }, [tasks]);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -103,9 +115,9 @@ export function LiveDashboardStats() {
           </div>
           <div className="mt-4 space-y-1.5">
             {[
-              { label: "Backlog", count: tasks.filter(t => t.status === "backlog").length, color: "bg-slate-400" },
-              { label: "To Do",   count: tasks.filter(t => t.status === "todo").length,    color: "bg-blue-500"  },
-              { label: "Review",  count: tasks.filter(t => t.status === "review").length,  color: "bg-amber-500" },
+              { label: "Backlog", count: backlogCount, color: "bg-slate-400" },
+              { label: "To Do",   count: todoCount,    color: "bg-blue-500"  },
+              { label: "Review",  count: reviewCount,  color: "bg-amber-500" },
             ].map(({ label, count, color }) => (
               <div key={label} className="flex items-center gap-2 text-[11px] text-muted-foreground">
                 <div className={`w-1.5 h-1.5 rounded-full ${color}`} aria-hidden="true" />

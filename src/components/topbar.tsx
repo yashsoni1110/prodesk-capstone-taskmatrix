@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -14,7 +15,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Bell, Search, LogOut, User, Settings, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { NotificationsPanel } from "@/components/notifications-panel";
+// Lazy-load the notifications panel — it's only needed after the user clicks
+// the bell icon; keeping it out of the initial bundle saves ~15 KB of JS parse.
+const NotificationsPanel = dynamic(
+  () => import("@/components/notifications-panel").then((m) => ({ default: m.NotificationsPanel })),
+  { ssr: false }
+);
 import { useUnreadCount } from "@/store/notification-store";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";

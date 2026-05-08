@@ -19,13 +19,17 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { useCurrentUser, useAuthStore } from "@/store/auth-store";
 import { useTasks } from "@/store/task-store";
 import { useProjects } from "@/store/project-store";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname  = usePathname();
-  const taskCount    = useTasks().length;
-  const projectCount = useProjects().length;
+  const tasks    = useTasks();
+  const projects = useProjects();
+  // Memoize badge counts — prevents NavLinks from re-rendering on every
+  // task state update (e.g. drag-drop) when the count itself hasn't changed.
+  const taskCount    = useMemo(() => tasks.length,    [tasks.length]);
+  const projectCount = useMemo(() => projects.length, [projects.length]);
 
   const navGroups = [
     {

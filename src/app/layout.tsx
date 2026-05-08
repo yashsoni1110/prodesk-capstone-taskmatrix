@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Single font → single CSS fetch → one fewer render-blocking request
+// display:swap means text stays visible while the font loads (no FOIT)
+const inter = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
   display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: "swap",
+  // Only the weights we actually use in the app
+  weight: ["400", "500", "600", "700"],
+  // Tell next/font to preload the font files on the page
+  preload: true,
 });
 
 export const metadata: Metadata = {
@@ -45,9 +45,15 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} h-full antialiased`}
     >
       <head>
+        {/* Preconnect to Google Fonts origin & CDN — opens the TCP+TLS
+            handshake before the font CSS is even discovered, shaving ~100-200ms
+            off the render-blocking request on cold loads. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+
         {/* Inline critical CSS — all color tokens used on the login page are
             inlined so text renders immediately without waiting for the external
             stylesheet (~2s on slow connections). This is the primary LCP fix. */}

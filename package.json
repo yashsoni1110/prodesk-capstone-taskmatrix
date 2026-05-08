@@ -12,6 +12,7 @@
     "@base-ui/react": "^1.3.0",
     "@google/generative-ai": "^0.24.1",
     "@hello-pangea/dnd": "^18.0.1",
+    "@next/bundle-analyzer": "^16.2.6",
     "@supabase/supabase-js": "^2.103.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -37,17 +38,7 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   },
-  "browserslist": {
-    "production": [
-      "chrome >= 93",
-      "firefox >= 90",
-      "safari >= 15",
-      "edge >= 93"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  }
+  "browserslist": [
+    "defaults and supports es6-module"
+  ]
 }

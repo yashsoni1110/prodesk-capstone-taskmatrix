@@ -1,330 +1,36 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Plus, CalendarDays, CheckSquare, Search,
-  MoreHorizontal, Trash2, ExternalLink, Users,
-  TrendingUp, FolderKanban, Pencil, AlertCircle,
-} from "lucide-react";
-import Link from "next/link";
-import { useProjects, useProjectActions } from "@/store/project-store";
-import { useTasks } from "@/store/task-store";
-import { useAuthStore } from "@/store/auth-store";
-import { NewProjectDialog } from "@/components/new-project-dialog";
-import { EditProjectDialog } from "@/components/edit-project-dialog";
-import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
-import type { Project } from "@/lib/data";
-import { toast } from "sonner";
+// Server Component
+import { ProjectsClient } from "./ProjectsClient";
+import { Suspense } from "react";
 
 export default function ProjectsPage() {
-  const projects = useProjects();
-  const tasks    = useTasks();
-  const { deleteProject, fetchProjects } = useProjectActions();
-  const supabaseUser = useAuthStore((s) => s.supabaseUser);
-  const router   = useRouter();
-  const [search, setSearch] = useState("");
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [isDeleting,      setIsDeleting]      = useState(false);
-  const [editProject,     setEditProject]     = useState<Project | null>(null);
-
-  // Fetch projects from Supabase on mount / when user changes
-  useEffect(() => {
-    if (supabaseUser?.id) {
-      fetchProjects(supabaseUser.id);
-    }
-  }, [supabaseUser?.id, fetchProjects]);
-
-  const filtered = projects.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.description.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleDeleteConfirm = async () => {
-    if (!confirmDeleteId) return;
-    const proj = projects.find((p) => p.id === confirmDeleteId);
-    setIsDeleting(true);
-    deleteProject(confirmDeleteId);
-    await new Promise((r) => setTimeout(r, 400));
-    setIsDeleting(false);
-    setConfirmDeleteId(null);
-    toast.error("🗑️ Project deleted", {
-      description: proj ? `"${proj.name}" was permanently removed.` : "Project removed.",
-    });
-  };
-
-  /* ── Summary stats ── */
-  const totalTasks    = tasks.length;
-  const doneTasks     = tasks.filter((t) => t.status === "done").length;
-  const avgProgress   = projects.length
-    ? Math.round(projects.reduce((s, p) => s + p.progress, 0) / projects.length)
-    : 0;
-
   return (
-    <div className="space-y-6 max-w-[1200px]">
+    <main className="min-h-full max-w-[1200px]">
+      <Suspense fallback={<ProjectsSkeleton />}>
+        <ProjectsClient />
+      </Suspense>
+    </main>
+  );
+}
 
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {projects.length} active project{projects.length !== 1 ? "s" : ""} · {totalTasks} total tasks
-          </p>
+function ProjectsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-up">
+        <div className="space-y-2">
+          <div className="h-8 w-32 bg-muted/40 rounded-lg animate-pulse" />
+          <div className="h-4 w-48 bg-muted/20 rounded-md animate-pulse" />
         </div>
-        <NewProjectDialog />
       </div>
-
-      {/* ── Summary strip ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Projects",     value: projects.length, icon: FolderKanban, color: "text-primary",    bg: "bg-primary/10"       },
-          { label: "Total Tasks",  value: totalTasks,       icon: CheckSquare,  color: "text-blue-400",   bg: "bg-blue-500/10"      },
-          { label: "Completed",    value: doneTasks,        icon: TrendingUp,   color: "text-emerald-400",bg: "bg-emerald-500/10"   },
-          { label: "Avg Progress", value: `${avgProgress}%`,icon: Users,        color: "text-violet-400", bg: "bg-violet-500/10"    },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card">
-            <div className={`p-2 rounded-lg ${bg}`}>
-              <Icon className={`w-4 h-4 ${color}`} />
-            </div>
-            <div>
-              <p className="text-lg font-bold tabular-nums leading-none">{value}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{label}</p>
-            </div>
-          </div>
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-20 rounded-xl border border-border/40 bg-muted/10 animate-pulse" />
         ))}
       </div>
-
-      {/* ── Search ── */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-        <Input
-          id="project-search"
-          placeholder="Search projects…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 h-9 bg-muted/40 border-transparent focus-visible:border-border focus-visible:bg-background focus-visible:ring-0"
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-40 rounded-xl border border-border/40 bg-muted/5 animate-pulse" />
+        ))}
       </div>
-
-      {/* ── Grid ── */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-            <FolderKanban className="w-5 h-5 text-muted-foreground" />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {search ? `No projects matching "${search}"` : "No projects yet"}
-          </p>
-          {!search && <NewProjectDialog />}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {filtered.map((project) => {
-            const projectTasks  = tasks.filter((t) => t.projectId === project.id);
-            const hasLinkedTasks = projectTasks.length > 0;
-            const done           = projectTasks.filter((t) => t.status === "done").length;
-            const inProgress     = projectTasks.filter((t) => t.status === "in-progress").length;
-            const critical       = projectTasks.filter((t) => t.priority === "critical").length;
-            const displayCount   = hasLinkedTasks ? projectTasks.length : project.taskCount;
-            const pct            = hasLinkedTasks
-              ? Math.round((done / projectTasks.length) * 100)
-              : project.progress;
-
-            return (
-              <Card
-                key={project.id}
-                id={`project-card-${project.id}`}
-                onClick={() => router.push(`/kanban?project=${project.id}`)}
-                className="group border-border/50 hover:border-primary/40 hover:shadow-md transition-all duration-150 overflow-hidden cursor-pointer"
-              >
-                {/* Color accent bar */}
-                <div className="h-1 w-full" style={{ backgroundColor: project.color }} />
-
-                <CardContent className="p-5 space-y-4">
-                  {/* Header */}
-                  <div className="flex items-start gap-3">
-                    <div
-                      className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-white text-base font-bold shadow-sm"
-                      style={{ backgroundColor: project.color }}
-                    >
-                      {project.name.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
-                        {project.name}
-                      </h2>
-                      <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                        {project.description || "No description"}
-                      </p>
-                    </div>
-
-                    {/* Progress badge + menu — isolated from card onClick */}
-                    <div
-                      className="flex items-center gap-1 shrink-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] font-semibold"
-                        style={{
-                          borderColor: project.color + "60",
-                          color: project.color,
-                          backgroundColor: project.color + "15",
-                        }}
-                      >
-                        {pct}%
-                      </Badge>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          className="opacity-30 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
-                          id={`project-menu-${project.id}`}
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
-                          <DropdownMenuItem onSelect={() => router.push(`/kanban?project=${project.id}`)}>
-                            <ExternalLink className="w-3.5 h-3.5 mr-2" /> Open Board
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onSelect={() => setEditProject(project)}
-                            id={`edit-project-${project.id}`}
-                          >
-                            <Pencil className="w-3.5 h-3.5 mr-2" /> Edit project…
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onSelect={() => setConfirmDeleteId(project.id)}
-                          >
-                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete project…
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                      <span>Progress</span>
-                      <span>{done} / {displayCount} tasks done</span>
-                    </div>
-                    <Progress value={pct} className="h-1.5" />
-                  </div>
-
-                  {/* Meta row */}
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5">
-                      <CheckSquare className="w-3.5 h-3.5" />
-                      {displayCount} tasks
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <CalendarDays className="w-3.5 h-3.5" />
-                      {project.dueDate
-                        ? `Due ${new Date(project.dueDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
-                        : "No due date"}
-                    </span>
-                    {inProgress > 0 && (
-                      <span className="flex items-center gap-1.5 text-violet-400">
-                        <TrendingUp className="w-3.5 h-3.5" />
-                        {inProgress} active
-                      </span>
-                    )}
-                    {critical > 0 && (
-                      <span className="flex items-center gap-1.5 text-red-400">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        {critical} critical
-                      </span>
-                    )}
-                  </div>
-
-                  {/* No linked tasks hint */}
-                  {!hasLinkedTasks && (
-                    <p className="text-[11px] text-muted-foreground/60 italic">
-                      💡 Click card to open board · create tasks there to link them here
-                    </p>
-                  )}
-
-                    <div className="flex items-center justify-between pt-0.5">
-                      <div className="flex items-center">
-                        {project.members.slice(0, 5).map((member) => (
-                          <Avatar
-                            key={member.id}
-                            className="h-7 w-7 -ml-2 first:ml-0 border-2 border-card"
-                            title={member.name}
-                          >
-                            <AvatarFallback className="text-[9px] font-bold bg-gradient-to-br from-primary to-violet-600 text-white">
-                              {member.initials}
-                            </AvatarFallback>
-                          </Avatar>
-                        ))}
-                        {project.members.length > 5 && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            +{project.members.length - 5}
-                          </span>
-                        )}
-                        {project.members.length === 0 && (
-                          <span className="text-xs text-muted-foreground">No members</span>
-                        )}
-                      </div>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); router.push("/kanban"); }}
-                        className="h-7 text-xs gap-1.5"
-                        id={`open-board-${project.id}-btn`}
-                      >
-                        <ExternalLink className="w-3 h-3" /> Open Board
-                      </Button>
-                    </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          {/* Add project card */}
-          <div className="border-2 border-dashed border-border/50 hover:border-primary/40 rounded-xl flex items-center justify-center p-8 transition-colors group">
-            <div className="flex flex-col items-center gap-3 text-center">
-              <div className="w-10 h-10 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                <Plus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
-              <p className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors mb-1">
-                New Project
-              </p>
-              <NewProjectDialog />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Project Dialog */}
-      {editProject && (
-        <EditProjectDialog
-          project={editProject}
-          open={!!editProject}
-          onClose={() => setEditProject(null)}
-        />
-      )}
-
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDeleteDialog
-        open={!!confirmDeleteId}
-        onClose={() => setConfirmDeleteId(null)}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Project"
-        description="This project will be permanently deleted. All associated tasks may be affected. This action cannot be undone."
-        isDeleting={isDeleting}
-      />
     </div>
   );
 }
