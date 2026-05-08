@@ -48,21 +48,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        {/* Preload fonts for better LCP */}
-        <link
-          rel="preload"
-          href="/_next/static/media/c9a5bc6a7c948935-s.p.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-        {/* Preconnect + DNS prefetch to Supabase — shaves ~150ms off auth RTT */}
+        {/* Preconnect + DNS prefetch to Supabase — shaves ~150ms off auth RTT.
+            Do NOT add a hardcoded font preload here — Next.js hashes the font
+            filename on every build, making any manual link instantly stale. */}
         <link rel="preconnect" href="https://eyovndzmjqzzujpuzvwa.supabase.co" />
         <link rel="dns-prefetch" href="https://eyovndzmjqzzujpuzvwa.supabase.co" />
-        {/* Preconnect to Supabase auth endpoint */}
-        <link rel="preconnect" href="https://eyovndzmjqzzujpuzvwa.supabase.co" crossOrigin="anonymous" />
 
-        {/* Inline critical CSS — prevents FOUC and reduces LCP by ensuring the
+        {/* Inline critical CSS — prevents FOUC and reduces LCP by ensuring
             background/text colours are available before any stylesheet loads. */}
         <style dangerouslySetInnerHTML={{ __html: `
           :root { --background: oklch(0.985 0.002 264); --foreground: oklch(0.145 0.022 264); --primary: oklch(0.52 0.24 268); }
