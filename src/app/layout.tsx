@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 // Single font → single CSS fetch → one fewer render-blocking request
-// display:swap means text stays visible while the font loads (no FOIT)
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
   display: "swap",
-  // Only the weights we actually use in the app
   weight: ["400", "500", "600", "700"],
-  // Tell next/font to preload the font files on the page
   preload: true,
 });
 
@@ -73,7 +71,14 @@ export default function RootLayout({
         `}} />
       </head>
       <body className="min-h-full flex flex-col">
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

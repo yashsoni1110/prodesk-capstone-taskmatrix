@@ -9,7 +9,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { useTaskStore } from "@/store/task-store";
 import { useProjectStore } from "@/store/project-store";
-import { ThemeProvider } from "@/components/theme-provider";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -38,12 +37,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [initialized, isAuthenticated, router]);
 
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="dark"
-      enableSystem
-      disableTransitionOnChange
-    >
       <div className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -81,6 +74,5 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           }}
         />
       </div>
-    </ThemeProvider>
   );
 }
