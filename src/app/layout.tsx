@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "sonner";
 
 // Single font → single CSS fetch → one fewer render-blocking request
 // display:swap means text stays visible while the font loads (no FOIT)
@@ -48,12 +46,6 @@ export default function RootLayout({
       className={`${inter.variable} h-full antialiased`}
     >
       <head>
-        {/* Preconnect to Google Fonts origin & CDN — opens the TCP+TLS
-            handshake before the font CSS is even discovered, shaving ~100-200ms
-            off the render-blocking request on cold loads. */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-
         {/* Inline critical CSS — all color tokens used on the login page are
             inlined so text renders immediately without waiting for the external
             stylesheet (~2s on slow connections). This is the primary LCP fix. */}
@@ -88,17 +80,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>{children}</TooltipProvider>
-          {/* ── Sonner toast notifications ── */}
-          <Toaster
-            position="bottom-right"
-            richColors
-            closeButton
-            toastOptions={{
-              duration: 3500,
-              style: { fontSize: "13px" },
-            }}
-          />
+          {children}
         </ThemeProvider>
       </body>
     </html>

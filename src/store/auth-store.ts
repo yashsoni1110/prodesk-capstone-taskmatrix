@@ -2,8 +2,6 @@ import { create } from "zustand";
 import { MOCK_USERS } from "@/lib/data";
 import type { User } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import { useTaskStore } from "@/store/task-store";
-import { useProjectStore } from "@/store/project-store";
 
 // ── Supabase auth user shape (id + email only) ────────────────────────────────
 
@@ -209,11 +207,7 @@ export const useAuthStore = create<AuthStore>()((set) => ({
             isLoading: false,
           });
         } else {
-          // Token refresh failure or explicit sign-out — clear per-user store data
-          if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED") {
-            useTaskStore.getState().clearTasks();
-            useProjectStore.getState().clearProjects();
-          }
+          // Token refresh failure or explicit sign-out
           set({
             supabaseUser: null,
             user: null,
@@ -327,9 +321,6 @@ export const useAuthStore = create<AuthStore>()((set) => ({
   // ── logout ───────────────────────────────────────────────────────────────────
   async logout() {
     await supabase.auth.signOut();
-    // Clear per-user data from the task and project stores
-    useTaskStore.getState().clearTasks();
-    useProjectStore.getState().clearProjects();
     set({
       user: null,
       supabaseUser: null,

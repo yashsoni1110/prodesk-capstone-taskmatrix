@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { Sidebar, MobileSidebarTrigger } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { useAuthStore } from "@/store/auth-store";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "sonner";
+import { useTaskStore } from "@/store/task-store";
+import { useProjectStore } from "@/store/project-store";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -25,6 +29,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // render before Supabase has read the cached session from localStorage.
   useEffect(() => {
     if (initialized && !isAuthenticated) {
+      // Sign-out detected: clear sensitive data from client stores
+      useTaskStore.getState().clearTasks();
+      useProjectStore.getState().clearProjects();
       router.replace("/");
     }
   }, [initialized, isAuthenticated, router]);
@@ -42,22 +49,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <p className="text-[11px] text-muted-foreground animate-pulse">Initializing session...</p>
               </div>
             ) : (
-              // Suspense lets Next.js stream page content to the browser
-              // while client-side JS is still evaluating — pages render
-              // their static shell immediately, reducing Time to Interactive.
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center h-[60vh]">
-                    <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                  </div>
-                }
-              >
-                {children}
-              </Suspense>
+              <TooltipProvider>
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center h-[60vh]">
+                      <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                    </div>
+                  }
+                >
+                  {children}
+                </Suspense>
+              </TooltipProvider>
             )}
           </div>
         </main>
       </div>
+      <Toaster
+        position="bottom-right"
+        richColors
+        closeButton
+        toastOptions={{
+          duration: 3500,
+          style: { fontSize: "13px" },
+        }}
+      />
     </div>
   );
 }

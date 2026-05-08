@@ -5,13 +5,15 @@ import { useTasks } from "@/store/task-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // ── Lazy-load the heavy Recharts bundle off the critical path ────────────────
-const AreaChart       = dynamic(() => import("recharts").then((m) => m.AreaChart),       { ssr: false });
-const Area            = dynamic(() => import("recharts").then((m) => m.Area),            { ssr: false });
-const XAxis           = dynamic(() => import("recharts").then((m) => m.XAxis),           { ssr: false });
-const YAxis           = dynamic(() => import("recharts").then((m) => m.YAxis),           { ssr: false });
-const CartesianGrid   = dynamic(() => import("recharts").then((m) => m.CartesianGrid),   { ssr: false });
-const Tooltip         = dynamic(() => import("recharts").then((m) => m.Tooltip),         { ssr: false });
-const ResponsiveContainer = dynamic(() => import("recharts").then((m) => m.ResponsiveContainer), { ssr: false });
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -148,7 +150,7 @@ export function AnalyticsChart() {
                 tickLine={false}
                 width={20}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <RechartsTooltip content={<CustomTooltip />} />
               <Area
                 type="monotone" dataKey="total"
                 name="Total" stroke="#8b5cf6" strokeWidth={2}
