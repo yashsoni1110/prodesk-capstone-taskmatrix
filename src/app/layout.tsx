@@ -48,18 +48,31 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        {/* Preconnect + DNS prefetch to Supabase — shaves ~150ms off auth RTT.
-            Do NOT add a hardcoded font preload here — Next.js hashes the font
-            filename on every build, making any manual link instantly stale. */}
-        <link rel="preconnect" href="https://eyovndzmjqzzujpuzvwa.supabase.co" />
-        <link rel="dns-prefetch" href="https://eyovndzmjqzzujpuzvwa.supabase.co" />
-
-        {/* Inline critical CSS — prevents FOUC and reduces LCP by ensuring
-            background/text colours are available before any stylesheet loads. */}
+        {/* Inline critical CSS — all color tokens used on the login page are
+            inlined so text renders immediately without waiting for the external
+            stylesheet (~2s on slow connections). This is the primary LCP fix. */}
         <style dangerouslySetInnerHTML={{ __html: `
-          :root { --background: oklch(0.985 0.002 264); --foreground: oklch(0.145 0.022 264); --primary: oklch(0.52 0.24 268); }
-          .dark { --background: oklch(0.095 0.012 264); --foreground: oklch(0.945 0.008 264); --primary: oklch(0.635 0.22 268); }
-          body { background-color: var(--background); color: var(--foreground); margin: 0; }
+          :root {
+            --background:oklch(0.985 0.002 264);
+            --foreground:oklch(0.145 0.022 264);
+            --primary:oklch(0.52 0.24 268);
+            --muted:oklch(0.958 0.006 264);
+            --muted-foreground:oklch(0.48 0.04 264);
+            --card:oklch(1 0 0);
+            --border:oklch(0.882 0.008 264);
+            --accent:oklch(0.938 0.012 264);
+          }
+          .dark {
+            --background:oklch(0.095 0.012 264);
+            --foreground:oklch(0.945 0.008 264);
+            --primary:oklch(0.635 0.22 268);
+            --muted:oklch(0.175 0.016 264);
+            --muted-foreground:oklch(0.60 0.04 264);
+            --card:oklch(0.135 0.016 264);
+            --border:oklch(1 0 0 / 7%);
+            --accent:oklch(0.205 0.022 264);
+          }
+          body{background-color:var(--background);color:var(--foreground);margin:0}
         `}} />
       </head>
       <body className="min-h-full flex flex-col">

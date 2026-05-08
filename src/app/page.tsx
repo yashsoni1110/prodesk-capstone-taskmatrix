@@ -236,7 +236,7 @@ function LoginContent() {
                     Password
                   </label>
                   {!isRegister && (
-                    <a href="#" className="text-[11px] text-muted-foreground/80 hover:text-foreground/80 transition-colors" id="forgot-password-link">
+                    <a href="#" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors" id="forgot-password-link">
                       Forgot?
                     </a>
                   )}
