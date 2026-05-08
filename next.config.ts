@@ -50,6 +50,11 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  // Experimental optimizations
+  experimental: {
+    optimizePackageImports: ["lucide-react", "recharts", "@radix-ui/react-icons"],
+  },
 };
 
 export default nextConfig;

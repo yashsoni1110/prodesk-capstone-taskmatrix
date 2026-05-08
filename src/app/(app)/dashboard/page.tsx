@@ -108,13 +108,32 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="space-y-5">
-        <div className="h-8 w-64 rounded-md bg-muted/40 animate-pulse" />
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-1">
+          <div className="h-8 w-64 rounded-md bg-muted/30 animate-pulse" />
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-24 rounded-md bg-muted/30 animate-pulse" />
+            <div className="h-8 w-32 rounded-md bg-muted/30 animate-pulse" />
+          </div>
+        </div>
+        
+        {/* 3 Stat Card Skeletons */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[1,2,3].map((i) => (
-            <div key={i} className="h-32 rounded-xl bg-muted/40 animate-pulse" />
+            <div key={i} className="h-32 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
           ))}
         </div>
-        <div className="h-56 rounded-xl bg-muted/40 animate-pulse" />
+
+        {/* 2-col Main Content Skeletons */}
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-5">
+          <div className="space-y-5">
+            <div className="h-[320px] rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
+            <div className="h-80 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
+          </div>
+          <div className="space-y-4">
+            <div className="h-48 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
+            <div className="h-80 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }

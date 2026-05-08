@@ -29,15 +29,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [initialized, isAuthenticated, router]);
 
-  // Show spinner until the initial session check completes
-  if (!initialized || !isAuthenticated) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
@@ -45,7 +36,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Topbar mobileTrigger={<MobileSidebarTrigger />} />
         <main className="flex-1 overflow-y-auto">
           <div className="px-6 py-5 max-w-[1440px]">
-            {children}
+            {!initialized || !isAuthenticated ? (
+              <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
+                <div className="w-5 h-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                <p className="text-[11px] text-muted-foreground animate-pulse">Initializing session...</p>
+              </div>
+            ) : (
+              children
+            )}
           </div>
         </main>
       </div>
