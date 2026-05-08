@@ -4,11 +4,8 @@
 // keeping Supabase + auth-store out of the critical-path JS evaluation.
 
 import { Suspense } from "react";
-import dynamic from "next/dynamic";
+import LoginForm from "./login-form";
 import { Zap } from "lucide-react";
-
-// Load the form as a deferred client chunk — doesn't block first paint
-const LoginForm = dynamic(() => import("./login-form"));
 
 const features = [
   "Kanban boards with drag-and-drop",
@@ -19,22 +16,21 @@ const features = [
 
 const logos = ["Vercel", "Linear", "Stripe", "Figma", "Notion"];
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const isRegisterInitial = params.mode === "register";
+
   return (
     <main className="min-h-screen flex bg-background">
 
       {/* ── LEFT — static brand panel (pure SSR, zero client JS) ── */}
       <div className="hidden lg:flex flex-col w-[420px] xl:w-[480px] shrink-0 border-r border-border relative overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              "linear-gradient(currentColor 1px,transparent 1px),linear-gradient(90deg,currentColor 1px,transparent 1px)",
-            backgroundSize: "40px 40px",
-          }}
-        />
-        <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-primary/8 to-transparent" />
-        <div className="absolute -bottom-32 -left-20 w-72 h-72 rounded-full bg-primary/10 blur-[80px]" />
+        <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-primary/5 to-transparent" />
+
 
         <div className="relative z-10 flex items-center gap-2.5 p-8">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
@@ -86,7 +82,7 @@ export default function LoginPage() {
 
       {/* ── RIGHT — interactive form, deferred client JS chunk ── */}
       <Suspense fallback={<div className="flex-1" />}>
-        <LoginForm />
+        <LoginForm isRegisterInitial={isRegisterInitial} />
       </Suspense>
 
     </main>

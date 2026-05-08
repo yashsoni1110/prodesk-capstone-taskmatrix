@@ -4,49 +4,82 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAuthStore } from "@/store/auth-store";
+import { supabase } from "@/lib/supabase";
 import { Zap, Eye, EyeOff, ArrowRight, ChevronRight, AlertCircle, CheckCircle, Mail } from "lucide-react";
 
-export default function LoginForm() {
+export default function LoginForm({ isRegisterInitial = false }: { isRegisterInitial?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [isRegister, setIsRegister] = useState(false);
+  const [isRegister, setIsRegister] = useState(isRegisterInitial);
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("alex@taskmatrix.io");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState(isRegisterInitial ? "" : "alex@taskmatrix.io");
+  const [password, setPassword] = useState(isRegisterInitial ? "" : "password123");
+  
+  // Local state instead of global store to minimize hydration overhead
+  const [loading, setLoading] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [loginSuccess, setLoginSuccess] = useState(false);
+  const [pendingEmailConfirmation, setPendingEmailConfirmation] = useState(false);
 
-  const login    = useAuthStore((s) => s.login);
-  const register = useAuthStore((s) => s.register);
-  const loading  = useAuthStore((s) => s.isLoading);
-  const lastError = useAuthStore((s) => s.lastError);
-  const pendingEmailConfirmation = useAuthStore((s) => s.pendingEmailConfirmation);
-  const clearError = useAuthStore((s) => s.clearError);
-
+  // Sync state if prop changes (e.g. back/forward navigation)
   useEffect(() => {
-    if (searchParams.get("mode") === "register") switchMode(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setIsRegister(isRegisterInitial);
+    setEmail(isRegisterInitial ? "" : "alex@taskmatrix.io");
+    setPassword(isRegisterInitial ? "" : "password123");
+  }, [isRegisterInitial]);
 
   const switchMode = (toRegister: boolean) => {
     setIsRegister(toRegister);
-    clearError();
+    setLastError(null);
     setLoginSuccess(false);
+    setPendingEmailConfirmation(false);
     setEmail(toRegister ? "" : "alex@taskmatrix.io");
     setPassword(toRegister ? "" : "password123");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearError();
+    setLastError(null);
     setLoginSuccess(false);
+    setLoading(true);
+    
     const nextPath = searchParams.get("next") ?? "/dashboard";
-    if (isRegister) {
-      const success = await register(email, password);
-      if (success && !useAuthStore.getState().pendingEmailConfirmation) router.push(nextPath);
-    } else {
-      const success = await login(email, password);
-      if (success) { setLoginSuccess(true); router.push(nextPath); }
+    
+    try {
+      if (isRegister) {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        if (!data.user) throw new Error("Registration failed");
+        
+        if (!data.session) {
+          setPendingEmailConfirmation(true);
+        } else {
+          setLoginSuccess(true);
+          router.push(nextPath);
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        
+        // Handle mock credentials fallback for demo environment
+        if (error) {
+          const isMock = email.endsWith("@taskmatrix.io") && password === "password123";
+          if (isMock) {
+            setLoginSuccess(true);
+            router.push(nextPath);
+            return;
+          }
+          throw error;
+        }
+
+        if (data.user) {
+          setLoginSuccess(true);
+          router.push(nextPath);
+        }
+      }
+    } catch (err: any) {
+      setLastError(err.message || "Authentication failed");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -64,7 +97,7 @@ export default function LoginForm() {
           <span className="text-[13px] text-muted-foreground hidden sm:block">
             {isRegister ? "Already have an account?" : "No account?"}{" "}
             <button type="button" onClick={() => switchMode(!isRegister)}
-              className="text-foreground/70 hover:text-foreground transition-colors font-medium"
+              className="text-foreground/70 hover:text-foreground transition-all duration-300 font-medium"
               id="auth-mode-toggle">
               {isRegister ? "Sign in" : "Sign up"}
             </button>
@@ -89,7 +122,7 @@ export default function LoginForm() {
           <div className="grid grid-cols-2 gap-2.5 mb-5">
             {[{ name: "GitHub", icon: "⌥" }, { name: "Google", icon: "G" }].map(({ name, icon }) => (
               <button key={name} type="button" id={`${name.toLowerCase()}-login-btn`}
-                className="flex items-center justify-center gap-2 h-9 rounded-md border border-border bg-muted/50 text-muted-foreground hover:bg-accent hover:text-foreground transition-all text-[13px] font-medium cursor-pointer">
+                className="flex items-center justify-center gap-2 h-9 rounded-md border border-border bg-muted/50 text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-300 text-[13px] font-medium cursor-pointer">
                 <span className="text-[11px] font-bold opacity-70">{icon}</span>{name}
               </button>
             ))}
@@ -116,7 +149,7 @@ export default function LoginForm() {
                   Password
                 </label>
                 {!isRegister && (
-                  <a href="#" className="text-[11px] text-muted-foreground hover:text-foreground transition-colors" id="forgot-password-link">
+                  <a href="#" className="text-[11px] text-muted-foreground hover:text-foreground transition-all duration-300" id="forgot-password-link">
                     Forgot?
                   </a>
                 )}
@@ -127,14 +160,14 @@ export default function LoginForm() {
                   required minLength={isRegister ? 6 : undefined}
                   className="h-9 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground/40 focus-visible:border-primary/60 focus-visible:bg-accent focus-visible:ring-0 pr-10 text-[13px]" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-all duration-300"
                   id="toggle-password-btn" aria-label={showPassword ? "Hide password" : "Show password"} tabIndex={-1}>
                   {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>
             <button type="submit" disabled={loading} id="auth-submit-btn"
-              className="w-full h-9 rounded-md bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2 hover:opacity-90 active:opacity-80 transition-all disabled:opacity-60 mt-2">
+              className="w-full h-9 rounded-md bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2 hover:opacity-90 active:opacity-80 transition-all duration-300 disabled:opacity-60 mt-2">
               {loading ? (
                 <><span className="w-3.5 h-3.5 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
                   {isRegister ? "Creating account…" : "Signing in…"}</>
@@ -194,16 +227,16 @@ export default function LoginForm() {
           <p className="text-center text-[11px] text-muted-foreground mt-6 sm:hidden">
             {isRegister ? "Already have an account?" : "No account?"}{" "}
             <button type="button" onClick={() => switchMode(!isRegister)}
-              className="underline hover:text-foreground transition-colors" id="auth-mode-toggle-mobile">
+              className="underline hover:text-foreground transition-all duration-300" id="auth-mode-toggle-mobile">
               {isRegister ? "Sign in" : "Sign up"}
             </button>
           </p>
 
           <p className="text-center text-[11px] text-muted-foreground mt-4">
             By continuing you agree to our{" "}
-            <a href="#" className="underline hover:text-foreground transition-colors" id="terms-link">Terms</a>
+            <a href="#" className="underline hover:text-foreground transition-all duration-300" id="terms-link">Terms</a>
             {" & "}
-            <a href="#" className="underline hover:text-foreground transition-colors" id="privacy-link">Privacy</a>.
+            <a href="#" className="underline hover:text-foreground transition-all duration-300" id="privacy-link">Privacy</a>.
           </p>
         </div>
       </div>
