@@ -53,7 +53,13 @@ const nextConfig: NextConfig = {
 
   // Experimental optimizations
   experimental: {
-    optimizePackageImports: ["lucide-react", "recharts", "@radix-ui/react-icons"],
+    optimizePackageImports: [
+      "lucide-react",
+      "recharts",
+      "@radix-ui/react-icons",
+      "@supabase/supabase-js",
+      "@hello-pangea/dnd",
+    ],
   },
 };
 

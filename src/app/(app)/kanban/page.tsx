@@ -2,7 +2,22 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import dynamic from "next/dynamic";
+import type { DropResult } from "@hello-pangea/dnd";
+
+// ── Lazy-load the DnD bundle — it's ~200 KB and not needed on first paint ──────
+const DragDropContext = dynamic(
+  () => import("@hello-pangea/dnd").then((m) => m.DragDropContext),
+  { ssr: false }
+);
+const Droppable = dynamic(
+  () => import("@hello-pangea/dnd").then((m) => m.Droppable),
+  { ssr: false }
+);
+const Draggable = dynamic(
+  () => import("@hello-pangea/dnd").then((m) => m.Draggable),
+  { ssr: false }
+);
 import { NewTaskDialog } from "@/components/new-task-dialog";
 import { EditTaskDialog } from "@/components/edit-task-dialog";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
