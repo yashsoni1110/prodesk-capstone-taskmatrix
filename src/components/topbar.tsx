@@ -55,14 +55,14 @@ export function Topbar({ mobileTrigger }: TopbarProps) {
 
       {/* Search — hidden on very small screens */}
       <div className="relative max-w-[280px] flex-1 hidden sm:block">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/60" />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/75" />
         <Input
           id="global-search"
           placeholder="Search…"
           aria-label="Search tasks and projects"
           className="pl-8 h-8 text-[13px] bg-muted/50 border-transparent focus-visible:border-border focus-visible:bg-background focus-visible:ring-0 transition-all placeholder:text-muted-foreground/50"
         />
-        <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-border/60 bg-muted/80 px-1 font-mono text-[10px] text-muted-foreground/60">
+        <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-border/60 bg-muted/80 px-1 font-mono text-[10px] text-muted-foreground/75">
           ⌘K
         </kbd>
       </div>

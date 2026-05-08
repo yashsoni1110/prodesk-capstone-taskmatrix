@@ -50,7 +50,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4" aria-label="Main navigation">
       {navGroups.map((group) => (
         <div key={group.label}>
-          <p className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/50 select-none">
+          <p className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/70 select-none">
             {group.label}
           </p>
           <div className="space-y-px">
@@ -137,7 +137,7 @@ function SidebarUserCard() {
           <p className="text-[12px] font-semibold leading-none truncate">{displayName}</p>
           <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">{displayEmail}</p>
         </div>
-        <ChevronRight className="w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors shrink-0" />
+        <ChevronRight className="w-3 h-3 text-muted-foreground/70 group-hover:text-muted-foreground transition-colors shrink-0" />
       </div>
     </div>
   );

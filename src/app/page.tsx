@@ -76,7 +76,7 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <main className="min-h-screen flex bg-background">
 
       {/* ── LEFT — brand panel ── */}
       <div className="hidden lg:flex flex-col w-[420px] xl:w-[480px] shrink-0 border-r border-border relative overflow-hidden">
@@ -136,10 +136,10 @@ function LoginContent() {
 
         {/* Trusted by */}
         <div className="relative z-10 border-t border-border px-8 py-5">
-          <p className="text-muted-foreground/50 text-[10px] uppercase tracking-widest mb-3">Trusted by teams at</p>
+          <p className="text-muted-foreground/70 text-[10px] uppercase tracking-widest mb-3">Trusted by teams at</p>
           <div className="flex items-center gap-4">
             {logos.map((name) => (
-              <span key={name} className="text-muted-foreground/50 text-[11px] font-medium">{name}</span>
+              <span key={name} className="text-muted-foreground/70 text-[11px] font-medium">{name}</span>
             ))}
           </div>
         </div>
@@ -209,7 +209,7 @@ function LoginContent() {
             {/* Divider */}
             <div className="flex items-center gap-3 mb-5">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-[11px] text-muted-foreground/50">or</span>
+              <span className="text-[11px] text-muted-foreground/70">or</span>
               <div className="flex-1 h-px bg-border" />
             </div>
 
@@ -236,7 +236,7 @@ function LoginContent() {
                     Password
                   </label>
                   {!isRegister && (
-                    <a href="#" className="text-[11px] text-muted-foreground/60 hover:text-foreground/70 transition-colors" id="forgot-password-link">
+                    <a href="#" className="text-[11px] text-muted-foreground/80 hover:text-foreground/80 transition-colors" id="forgot-password-link">
                       Forgot?
                     </a>
                   )}
@@ -255,8 +255,9 @@ function LoginContent() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground/60 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground/80 transition-colors"
                     id="toggle-password-btn"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -342,7 +343,7 @@ function LoginContent() {
             )}
 
             {/* Mode toggle — mobile fallback */}
-            <p className="text-center text-[11px] text-muted-foreground/50 mt-6 sm:hidden">
+            <p className="text-center text-[11px] text-muted-foreground/70 mt-6 sm:hidden">
               {isRegister ? "Already have an account?" : "No account?"}{" "}
               <button
                 type="button"
@@ -354,16 +355,16 @@ function LoginContent() {
               </button>
             </p>
 
-            <p className="text-center text-[11px] text-muted-foreground/50 mt-4">
+            <p className="text-center text-[11px] text-muted-foreground/70 mt-4">
               By continuing you agree to our{" "}
-              <a href="#" className="underline hover:text-foreground/50 transition-colors" id="terms-link">Terms</a>
+              <a href="#" className="underline hover:text-foreground/70 transition-colors" id="terms-link">Terms</a>
               {" & "}
-              <a href="#" className="underline hover:text-foreground/50 transition-colors" id="privacy-link">Privacy</a>.
+              <a href="#" className="underline hover:text-foreground/70 transition-colors" id="privacy-link">Privacy</a>.
             </p>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

@@ -8,10 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { PriorityBadge } from "@/components/task-badges";
-import { NewTaskDialog } from "@/components/new-task-dialog";
 import { LiveDashboardStats } from "@/components/live-dashboard-stats";
 
-// Lazy-load Recharts bundle — keeps it out of the critical-path JS chunk
+// Lazy-load heavy bundles — keeps them out of the critical-path JS chunk
 const AnalyticsChart = dynamic(
   () => import("@/components/analytics-chart").then((m) => ({ default: m.AnalyticsChart })),
   {
@@ -20,6 +19,11 @@ const AnalyticsChart = dynamic(
       <div className="h-[320px] rounded-xl border border-border/60 bg-muted/20 animate-pulse" />
     ),
   }
+);
+
+const NewTaskDialog = dynamic(
+  () => import("@/components/new-task-dialog").then((m) => ({ default: m.NewTaskDialog })),
+  { ssr: false }
 );
 import {
   Clock, ArrowRight, MessageSquare,
@@ -126,7 +130,7 @@ export default function DashboardPage() {
             {greeting}, {firstName} 👋
           </h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">
-            {displayEmail && <span className="text-muted-foreground/60">{displayEmail} · </span>}
+            {displayEmail && <span className="text-muted-foreground/70">{displayEmail} · </span>}
             {tasks.filter(t => t.status === "done").length} of {tasks.length} tasks complete across {projects.length} projects.
           </p>
         </div>
@@ -170,7 +174,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="p-0">
               {/* Table head */}
-              <div className="grid grid-cols-[1fr_76px_76px_auto] gap-3 px-5 py-2.5 border-y border-border/40 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground/60 mt-3">
+              <div className="grid grid-cols-[1fr_76px_76px_auto] gap-3 px-5 py-2.5 border-y border-border/40 text-[10px] font-semibold uppercase tracking-[0.07em] text-muted-foreground/70 mt-3">
                 <span>Task</span>
                 <span className="hidden sm:block">Priority</span>
                 <span className="hidden sm:block">Due</span>
@@ -195,7 +199,7 @@ export default function DashboardPage() {
                         {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/60 justify-end">
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 justify-end">
                       {task.comments > 0 && (
                         <span className="flex items-center gap-0.5">
                           <MessageSquare className="w-3 h-3" strokeWidth={1.6} />{task.comments}
@@ -290,7 +294,7 @@ export default function DashboardPage() {
                             <span className="text-[10px] text-muted-foreground/70 ml-2">+{project.members.length - 4}</span>
                           )}
                         </div>
-                        <span className="text-[11px] text-muted-foreground/60">
+                        <span className="text-[11px] text-muted-foreground/70">
                           {projectTasks.length || project.taskCount} tasks
                         </span>
                       </div>
@@ -355,7 +359,7 @@ export default function DashboardPage() {
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className={`w-1.5 h-1.5 rounded-full ${activityDotColor[item.type] ?? "bg-primary"}`} />
-                        <span className="text-[10px] text-muted-foreground/60">{item.time}</span>
+                        <span className="text-[10px] text-muted-foreground/70">{item.time}</span>
                       </div>
                     </div>
                   </div>
@@ -389,7 +393,7 @@ export default function DashboardPage() {
                         <span className="text-[12px] font-medium truncate">
                           {u.name.split(" ")[0]}{isMe && <span className="ml-1 text-[10px] text-primary font-semibold">(you)</span>}
                         </span>
-                        <span className="text-[10px] text-muted-foreground/60 tabular-nums ml-2">{done}/{userTasks.length}</span>
+                        <span className="text-[10px] text-muted-foreground/70 tabular-nums ml-2">{done}/{userTasks.length}</span>
                       </div>
                       <Progress value={pct} className="h-1" aria-label={`${u.name} workload: ${pct}% complete`} />
                     </div>
