@@ -59,6 +59,7 @@ export function Topbar({ mobileTrigger }: TopbarProps) {
         <Input
           id="global-search"
           placeholder="Search…"
+          aria-label="Search tasks and projects"
           className="pl-8 h-8 text-[13px] bg-muted/50 border-transparent focus-visible:border-border focus-visible:bg-background focus-visible:ring-0 transition-all placeholder:text-muted-foreground/50"
         />
         <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-border/60 bg-muted/80 px-1 font-mono text-[10px] text-muted-foreground/60">
@@ -107,6 +108,7 @@ export function Topbar({ mobileTrigger }: TopbarProps) {
           <DropdownMenuTrigger
             className="inline-flex items-center gap-2 h-8 px-2 rounded-md hover:bg-accent transition-colors focus-visible:outline-none"
             id="user-menu-btn"
+            aria-label={`Open user menu for ${displayName}`}
           >
             <Avatar className="h-6 w-6">
               <AvatarFallback className="text-[9px] font-bold bg-gradient-to-br from-primary to-violet-600 text-white">

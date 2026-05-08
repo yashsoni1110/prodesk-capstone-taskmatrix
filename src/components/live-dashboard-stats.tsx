@@ -68,7 +68,7 @@ export function LiveDashboardStats() {
             </div>
           </div>
           <div className="mt-4 flex items-center gap-3">
-            <svg viewBox="0 0 36 36" className="w-10 h-10 -rotate-90">
+            <svg viewBox="0 0 36 36" className="w-10 h-10 -rotate-90" role="img" aria-label={`Completion rate: ${completionPct}%`}>
               <circle cx="18" cy="18" r="14" fill="none" stroke="currentColor" strokeWidth="3" className="text-emerald-500/10" />
               <circle
                 cx="18" cy="18" r="14" fill="none" stroke="currentColor" strokeWidth="3"
@@ -108,7 +108,7 @@ export function LiveDashboardStats() {
               { label: "Review",  count: tasks.filter(t => t.status === "review").length,  color: "bg-amber-500" },
             ].map(({ label, count, color }) => (
               <div key={label} className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                <div className={`w-1.5 h-1.5 rounded-full ${color}`} />
+                <div className={`w-1.5 h-1.5 rounded-full ${color}`} aria-hidden="true" />
                 <span className="flex-1">{label}</span>
                 <span className="font-medium tabular-nums">{count}</span>
               </div>

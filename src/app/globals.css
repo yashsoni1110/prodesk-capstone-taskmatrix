@@ -204,7 +204,7 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
 
 /* ── Focus-visible ring (accessibility) ─────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid oklch(var(--primary) / 0.5);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 

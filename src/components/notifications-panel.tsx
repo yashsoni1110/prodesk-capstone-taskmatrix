@@ -89,6 +89,7 @@ export function NotificationsPanel({ open, onClose, anchorRef }: NotificationsPa
               onClick={clearAll}
               className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive transition-colors px-1.5 py-1 rounded-md hover:bg-destructive/10"
               id="clear-notifications-btn"
+              aria-label="Clear all notifications"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -96,6 +97,7 @@ export function NotificationsPanel({ open, onClose, anchorRef }: NotificationsPa
           <button
             onClick={onClose}
             className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            aria-label="Close notifications"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -150,6 +152,7 @@ export function NotificationsPanel({ open, onClose, anchorRef }: NotificationsPa
                 <button
                   onClick={(e) => { e.stopPropagation(); dismiss(n.id); }}
                   className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+                  aria-label={`Dismiss notification: ${n.title}`}
                 >
                   <X className="w-3 h-3" />
                 </button>

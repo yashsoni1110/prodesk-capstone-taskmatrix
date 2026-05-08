@@ -8,17 +8,34 @@ import { Toaster } from "sonner";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "TaskMatrix – Modern Project Management",
   description:
     "A powerful Kanban-based project management tool for high-performing software teams. Manage tasks, track progress, and collaborate seamlessly.",
+  metadataBase: new URL("https://prodesk-capstone-taskmatrix.vercel.app"),
+  openGraph: {
+    title: "TaskMatrix – Modern Project Management",
+    description: "A powerful Kanban-based project management tool for high-performing software teams.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TaskMatrix – Modern Project Management",
+    description: "A powerful Kanban-based project management tool for high-performing software teams.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

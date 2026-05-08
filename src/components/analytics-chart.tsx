@@ -1,12 +1,17 @@
 "use client";
 
-import {
-  AreaChart, Area,
-  XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { useTasks } from "@/store/task-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+// ── Lazy-load the heavy Recharts bundle off the critical path ────────────────
+const AreaChart       = dynamic(() => import("recharts").then((m) => m.AreaChart),       { ssr: false });
+const Area            = dynamic(() => import("recharts").then((m) => m.Area),            { ssr: false });
+const XAxis           = dynamic(() => import("recharts").then((m) => m.XAxis),           { ssr: false });
+const YAxis           = dynamic(() => import("recharts").then((m) => m.YAxis),           { ssr: false });
+const CartesianGrid   = dynamic(() => import("recharts").then((m) => m.CartesianGrid),   { ssr: false });
+const Tooltip         = dynamic(() => import("recharts").then((m) => m.Tooltip),         { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then((m) => m.ResponsiveContainer), { ssr: false });
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -38,7 +43,7 @@ function CustomTooltip({ active, payload, label }: any) {
       <p className="font-semibold mb-1.5 text-foreground">{label}</p>
       {payload.map((p: { name: string; value: number; color: string }) => (
         <div key={p.name} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} aria-hidden="true" />
           <span className="text-muted-foreground">{p.name}:</span>
           <span className="font-semibold text-foreground tabular-nums">{p.value}</span>
         </div>
@@ -81,7 +86,7 @@ export function AnalyticsChart() {
           <div>
             <CardTitle className="text-[14px] font-semibold">Task Analytics</CardTitle>
             <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-              Weekly activity · status & priority breakdown
+              Weekly activity · status &amp; priority breakdown
             </p>
           </div>
 
@@ -91,12 +96,12 @@ export function AnalyticsChart() {
               <p className="text-lg font-bold tabular-nums text-emerald-500">{completion}%</p>
               <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Complete</p>
             </div>
-            <div className="w-px h-8 bg-border/60" />
+            <div className="w-px h-8 bg-border/60" aria-hidden="true" />
             <div className="text-center">
               <p className="text-lg font-bold tabular-nums text-violet-500">{active}</p>
               <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Active</p>
             </div>
-            <div className="w-px h-8 bg-border/60" />
+            <div className="w-px h-8 bg-border/60" aria-hidden="true" />
             <div className="text-center">
               <p className="text-lg font-bold tabular-nums text-foreground">{tasks.length}</p>
               <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Total</p>
@@ -108,7 +113,7 @@ export function AnalyticsChart() {
       <CardContent className="px-5 pb-5 pt-4 space-y-5">
 
         {/* ── Area Chart ── */}
-        <div>
+        <div role="img" aria-label="Weekly task activity area chart showing total, in-progress, and done tasks per day">
           <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={buckets} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
               <defs>
@@ -170,7 +175,7 @@ export function AnalyticsChart() {
               { label: "Done",        color: "#10b981" },
             ].map(({ label, color }) => (
               <span key={label} className="flex items-center gap-1.5">
-                <span className="w-4 h-[2px] rounded-full inline-block" style={{ backgroundColor: color }} />
+                <span className="w-4 h-[2px] rounded-full inline-block" style={{ backgroundColor: color }} aria-hidden="true" />
                 <span className="text-muted-foreground">{label}</span>
               </span>
             ))}
@@ -178,7 +183,7 @@ export function AnalyticsChart() {
         </div>
 
         {/* ── Divider ── */}
-        <div className="h-px bg-border/50" />
+        <div className="h-px bg-border/50" aria-hidden="true" />
 
         {/* ── Status + Priority row ── */}
         <div className="grid grid-cols-2 gap-5">
@@ -193,7 +198,7 @@ export function AnalyticsChart() {
             ) : (
               <div className="space-y-2">
                 {/* Stacked bar */}
-                <div className="flex h-2 rounded-full overflow-hidden gap-px">
+                <div className="flex h-2 rounded-full overflow-hidden gap-px" role="img" aria-label="Status distribution bar chart">
                   {statusEntries.map(([key, val]) => (
                     <div
                       key={key}
@@ -202,6 +207,7 @@ export function AnalyticsChart() {
                         width: `${(val / tasks.length) * 100}%`,
                         backgroundColor: STATUS_META[key]?.color ?? "#94a3b8",
                       }}
+                      title={`${STATUS_META[key]?.label ?? key}: ${val}`}
                     />
                   ))}
                 </div>
@@ -213,6 +219,7 @@ export function AnalyticsChart() {
                         <span
                           className="w-2 h-2 rounded-full shrink-0"
                           style={{ backgroundColor: STATUS_META[key]?.color ?? "#94a3b8" }}
+                          aria-hidden="true"
                         />
                         <span className="text-muted-foreground capitalize">
                           {STATUS_META[key]?.label ?? key}

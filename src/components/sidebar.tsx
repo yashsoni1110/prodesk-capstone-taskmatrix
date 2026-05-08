@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useCurrentUser, useAuthStore } from "@/store/auth-store";
 import { useTasks } from "@/store/task-store";
 import { useProjects } from "@/store/project-store";
@@ -47,7 +47,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   ];
 
   return (
-    <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+    <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4" aria-label="Main navigation">
       {navGroups.map((group) => (
         <div key={group.label}>
           <p className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/50 select-none">
@@ -155,6 +155,7 @@ export function MobileSidebarTrigger() {
         <Menu className="w-4 h-4" />
       </SheetTrigger>
       <SheetContent side="left" className="p-0 flex flex-col w-56" id="mobile-sidebar">
+        <SheetTitle className="sr-only">Navigation menu</SheetTitle>
         <SidebarLogo />
         <NavLinks onNavigate={() => setOpen(false)} />
         <SidebarUserCard />
@@ -165,7 +166,7 @@ export function MobileSidebarTrigger() {
 
 export function Sidebar() {
   return (
-    <aside className="hidden md:flex flex-col w-[216px] shrink-0 h-screen sticky top-0 border-r border-border/60 bg-sidebar overflow-hidden relative">
+    <aside className="hidden md:flex flex-col w-[216px] shrink-0 h-screen sticky top-0 border-r border-border/60 bg-sidebar overflow-hidden relative" aria-label="Application sidebar">
       <SidebarLogo />
       <NavLinks />
       <SidebarUserCard />
