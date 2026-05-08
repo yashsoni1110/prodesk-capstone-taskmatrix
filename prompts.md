@@ -421,3 +421,69 @@ These are the AI prompts I used for help while building TaskMatrix, ordered from
 ### 53. Implementing Empty States
 
 > When a new user logs in or views a project with no tasks, they just see a blank area. I want to add "Empty States". For the Kanban board, if there are 0 tasks, show a centered `div` with a big transparent Lucide icon (like a Clipboard or FilePlus), a title "No tasks found", a subtitle, and a "Create your first task" button. Same for the Projects page if there are 0 projects.
+
+---
+
+## 🚀 Week 17 — Production Deployment & Performance
+
+### 54. Production deployment checklist for Next.js on Vercel
+
+> I'm about to deploy my Next.js 16 app to production on Vercel for the final capstone submission. What production optimizations should I add to next.config.ts? I need: gzip compression, image format optimization (avif/webp), security headers (X-Content-Type-Options, X-Frame-Options, XSS Protection, Referrer-Policy, Permissions-Policy), and aggressive Cache-Control headers for static assets.
+
+---
+
+### 55. Lazy-loading Recharts to reduce Total Blocking Time
+
+> My Lighthouse report shows TBT of 470ms — the Recharts library is loading on the critical path even though the analytics chart is below the fold. How do I lazy-load Recharts in a Next.js 16 app using `next/dynamic`? Each Recharts component (AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer) needs to be dynamically imported individually since they're named exports.
+
+---
+
+### 56. Lazy-loading @hello-pangea/dnd to reduce TBT on non-Kanban pages
+
+> The drag-and-drop library `@hello-pangea/dnd` (~200KB) is statically imported in my kanban/page.tsx which means it gets parsed on every page — even the login page and dashboard where it's not needed. How do I use `next/dynamic` to lazy-load `DragDropContext`, `Droppable`, and `Draggable` so the library only loads when the Kanban board is actually visited?
+
+---
+
+### 57. Lazy Supabase client singleton to defer SDK evaluation
+
+> The `@supabase/supabase-js` SDK is being parsed at module evaluation time because of the static `import { createClient }` in my `src/lib/supabase.ts`. This adds to the login page's TBT. How do I create a lazy singleton that only calls `createClient()` on the first actual auth operation, not at import time? I want to use a Proxy so the existing `supabase.auth.xxx` call sites don't need to change.
+
+---
+
+### 58. Inline critical CSS tokens to fix LCP element render delay
+
+> My Lighthouse report shows an "Element render delay" of 3,980ms for the LCP element `p.text-muted-foreground.text-[13px]`. The element exists in the SSR HTML but can't render correctly until the external CSS loads (~2 seconds). How do I inline the critical CSS custom properties (`--muted-foreground`, `--card`, `--border`, `--muted`, `--accent`, etc.) directly in the `<head>` of my Next.js root layout so they're available before any stylesheet loads?
+
+---
+
+### 59. Adding browserslist to eliminate legacy JavaScript polyfills
+
+> My Lighthouse report flags 14KB of "Legacy JavaScript" — polyfills for `Array.prototype.at`, `Array.prototype.flat`, `Array.prototype.flatMap`, `Object.fromEntries`, `Object.hasOwn`, `String.prototype.trimEnd`, and `String.prototype.trimStart`. These are all supported natively in browsers from 2021+. How do I add a `browserslist` config to my `package.json` targeting Chrome 93+, Firefox 90+, Safari 15+, and Edge 93+ to tell Next.js not to emit these polyfills?
+
+---
+
+### 60. Fixing WCAG AA contrast failures for Lighthouse accessibility
+
+> My Lighthouse accessibility audit shows contrast failures on two elements in my login page:
+> - `a#forgot-password-link.text-[11px].text-muted-foreground/80` — "Forgot?" link
+> - `span.text-[11px].text-muted-foreground/70` — small hint text
+> Lighthouse audits in light mode where `text-muted-foreground` at 80% opacity on a near-white background gives ~1.5:1 contrast (needs 4.5:1 at 11px). How do I fix these without changing the visual design too much?
+
+---
+
+### 61. Removing a hardcoded font preload that causes 404 after each build
+
+> I added a `<link rel="preload" href="/_next/static/media/c9a5bc6a7c948935-s.p.woff2">` in my root layout to improve LCP. But after a new build, Next.js generates a new content hash for the font file, making the hardcoded path a 404. How do I fix this? Should I just remove the preload entirely since `next/font/google` with `display: "swap"` already handles font optimization?
+
+---
+
+### 62. Adding optimizePackageImports to next.config.ts
+
+> How do I configure Next.js 16 to only bundle the specific exports I use from large packages, instead of the entire library? I want to add `@supabase/supabase-js`, `@hello-pangea/dnd`, `lucide-react`, and `recharts` to the `experimental.optimizePackageImports` array in `next.config.ts`. What's the correct syntax for Next.js 16?
+
+---
+
+### 63. Generating a 3-minute demo video script for the capstone presentation
+
+> I need a professional 3-minute video script to demo my TaskMatrix capstone project. It should have a hook, then walk through: login page → dashboard stats → Kanban board (drag a card, edit a task) → Projects page (create/filter) → Analytics chart → Team page → theme toggle + mobile view → tech stack callout → closing shot with the live URL. Include screen action cues and a recording checklist.
+

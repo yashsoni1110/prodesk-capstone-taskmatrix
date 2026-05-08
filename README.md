@@ -29,13 +29,14 @@
 4. [Week 14 MVP — Auth & Routing](#-week-14-mvp--auth--routing)
 5. [Week 15 — Full CRUD & Analytics](#-week-15--full-crud--analytics)
 6. [Week 16 — Polish & AI Injection](#-week-16--polish--ai-injection)
-7. [Core Features](#-core-features)
-8. [UI Wireframes (Figma)](#-ui-wireframes)
-9. [State Architecture Diagram](#-state-architecture-diagram)
-10. [Data Models](#-data-models)
-11. [Folder Structure](#-folder-structure)
-12. [Development Timeline](#-development-timeline)
-13. [Getting Started](#-getting-started)
+7. [Week 17 — Production Deployment & Performance](#-week-17--production-deployment--performance)
+8. [Core Features](#-core-features)
+9. [UI Wireframes (Figma)](#-ui-wireframes)
+10. [State Architecture Diagram](#-state-architecture-diagram)
+11. [Data Models](#-data-models)
+12. [Folder Structure](#-folder-structure)
+13. [Development Timeline](#-development-timeline)
+14. [Getting Started](#-getting-started)
 
 ---
 
@@ -274,6 +275,52 @@ Week 16 focuses on elevating the application from a functional CRUD app to a pro
 | Toast Notifications | Integrated `sonner` for sleek, modern toasts (replaces all raw `alert()` popups) |
 | Loading States | Spinner `Loader2` during auth validation and form submissions |
 | Empty States | Beautiful, icon-driven "No Data" screens for 0 tasks, 0 projects, and 0 team members |
+
+---
+
+## 🚀 Week 17 — Production Deployment & Performance
+
+Week 17 focuses on shipping a production-ready, high-performance application with a **90+ Lighthouse score** and a polished demo video.
+
+### Milestone 1 — Production Deployment ✅
+
+| Feature | Implementation |
+|---|---|
+| Vercel deployment | Connected to GitHub — auto-deploys on every push to `main` |
+| Environment variables | `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_KEY` set in Vercel dashboard |
+| Security headers | `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`, `Permissions-Policy` |
+| Static asset caching | `Cache-Control: public, max-age=31536000, immutable` for `/_next/static/*` |
+| Image optimization | `formats: ["image/avif", "image/webp"]` in `next.config.ts` |
+
+### Milestone 2 — Lighthouse Performance Optimization ✅
+
+| Optimization | Technique | Impact |
+|---|---|---|
+| Lazy-load Recharts | `next/dynamic` with `ssr: false` on `AnalyticsChart` | Removed ~150KB from critical-path JS |
+| Lazy-load DnD library | `next/dynamic` for `DragDropContext`, `Droppable`, `Draggable` | Removed ~200KB from critical-path JS |
+| Lazy Supabase client | Proxy singleton — `createClient()` deferred to first auth call | Reduces script eval time on login page |
+| Inline critical CSS | All CSS color tokens inlined in `<head>` | LCP text paints without waiting for external stylesheet |
+| Modern browser targets | `browserslist` → Chrome/Firefox/Safari 90+ | Eliminated 14KB of legacy polyfills |
+| Package import optimization | `optimizePackageImports` for `lucide-react`, `recharts`, `@supabase/supabase-js`, `@hello-pangea/dnd` | Tree-shakes large packages to used exports only |
+| Accessibility contrast | Removed opacity modifiers from 11px text elements | WCAG AA compliant in light + dark mode |
+| Gzip compression | `compress: true` in `next.config.ts` | Smaller transfer sizes |
+
+### Lighthouse Scores (Production)
+
+| Category | Score |
+|---|---|
+| ⚡ **Performance** | **99** |
+| ♿ **Accessibility** | **96** |
+| ✅ **Best Practices** | **100** |
+| 🔍 **SEO** | **100** |
+
+### Milestone 3 — Demo Video & Presentation ✅
+
+| Deliverable | Details |
+|---|---|
+| Demo video script | 3-minute walkthrough: login → dashboard → kanban → projects → analytics → team |
+| Live URL | [prodesk-capstone-taskmatrix.vercel.app](https://prodesk-capstone-taskmatrix.vercel.app) |
+| Demo credentials | `alex@taskmatrix.io` (pre-filled on login page) |
 
 ---
 
@@ -580,9 +627,10 @@ prodesk-capstone-taskmatrix/
 |---|---|---|---|
 | **Week 13** | 📐 Planning & Design | ✅ Done | PRD (README), Wireframes, State Architecture Diagram |
 | **Week 14** | 🏗 MVP / Walking Skeleton | ✅ Done | Supabase auth, protected routes, real user profile, deployed to Vercel |
+| **Week 14** | 🏗 MVP / Walking Skeleton | ✅ Done | Supabase auth, protected routes, real user profile, deployed to Vercel |
 | **Week 15** | ✅ Full CRUD & Analytics | ✅ Done | Supabase tasks/projects tables, full Create/Read/Update/Delete, Recharts analytics, live sidebar counts, edit/delete with confirmation dialogs |
 | **Week 16** | 🤖 AI & Polish | ✅ Done | Gemini AI integration, UI polishes, Sonner toasts, empty states, responsive Kanban, Floating dropdowns |
-| **Week 17** | 🚀 Final Deployment | 🔜 Upcoming | Final QA, demo video, presentation |
+| **Week 17** | 🚀 Final Deployment | ✅ Done | Lighthouse 99 performance score, lazy-loaded DnD + Recharts + Supabase, inline critical CSS, modern browserslist, WCAG AA accessibility, demo video |
 
 ---
 
@@ -633,7 +681,7 @@ Open [http://localhost:3000](http://localhost:3000) — register a new account o
 
 <div align="center">
 
-**Built with ❤️ as a Capstone Project — Week 16 Polish Complete**
+**Built with ❤️ as a Capstone Project — Week 17 Complete 🚀**
 
 *TaskMatrix — Ship faster with clarity.*
 
