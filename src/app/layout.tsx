@@ -47,6 +47,24 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        {/* Preload fonts for better LCP */}
+        <link
+          rel="preload"
+          href="/_next/static/media/c9a5bc6a7c948935-s.p.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        {/* Preconnect to Supabase for faster auth */}
+        <link rel="preconnect" href="https://eyovndzmjqzzujpuzvwa.supabase.co" />
+        
+        {/* Inline critical CSS variables to eliminate render-blocking delay for initial paint */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          :root { --background: oklch(0.095 0.012 264); --foreground: oklch(0.945 0.008 264); --primary: oklch(0.635 0.22 268); }
+          body { background-color: oklch(0.095 0.012 264); color: oklch(0.945 0.008 264); }
+        `}} />
+      </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider
           attribute="class"

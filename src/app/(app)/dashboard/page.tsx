@@ -94,8 +94,6 @@ export default function DashboardPage() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   // ── Build Team Workload list ────────────────────────────────────────────
-  // For real (non-demo) users: show only themselves in workload
-  // For demo users (mock email match): show full MOCK_USERS roster
   const isRealUserInMock = !!user && MOCK_USERS.some(m => m.id === user.id);
   const workloadUsers: Array<{ id: string; name: string; initials: string; role: string }> = [
     ...(!isRealUserInMock && supaUser
@@ -104,43 +102,9 @@ export default function DashboardPage() {
     ...(isRealUserInMock ? MOCK_USERS : []),
   ];
 
-  // ── Loading skeleton ───────────────────────────────────────────────────────
-  if (isLoading) {
-    return (
-      <div className="space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-1">
-          <div className="h-8 w-64 rounded-md bg-muted/30 animate-pulse" />
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-24 rounded-md bg-muted/30 animate-pulse" />
-            <div className="h-8 w-32 rounded-md bg-muted/30 animate-pulse" />
-          </div>
-        </div>
-        
-        {/* 3 Stat Card Skeletons */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[1,2,3].map((i) => (
-            <div key={i} className="h-32 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
-          ))}
-        </div>
-
-        {/* 2-col Main Content Skeletons */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-5">
-          <div className="space-y-5">
-            <div className="h-[320px] rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
-            <div className="h-80 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
-          </div>
-          <div className="space-y-4">
-            <div className="h-48 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
-            <div className="h-80 rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 animate-fade-up">
+
 
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-1">
@@ -200,34 +164,45 @@ export default function DashboardPage() {
                 <span />
               </div>
               <div className="divide-y divide-border/30">
-                {recentTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="grid grid-cols-[1fr_76px_76px_auto] gap-3 items-center px-5 py-3 hover:bg-muted/20 transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusColor[task.status] ?? "bg-slate-400"}`} />
-                      <span className="text-[13px] font-medium truncate">{task.title}</span>
+                {tasksLoading ? (
+                  /* Loading Skeletons for tasks */
+                  [1,2,3,4].map(i => (
+                    <div key={i} className="flex items-center gap-3 px-5 py-3.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-muted/40 animate-pulse" />
+                      <div className="h-4 flex-1 bg-muted/30 rounded-md animate-pulse" />
+                      <div className="h-4 w-12 bg-muted/30 rounded-md animate-pulse hidden sm:block" />
                     </div>
-                    <div className="hidden sm:block">
-                      <PriorityBadge priority={task.priority} />
-                    </div>
-                    <div className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/70">
-                      <Clock className="w-3 h-3 shrink-0" strokeWidth={1.8} />
-                      <span className="truncate">
-                        {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 justify-end">
-                      {task.comments > 0 && (
-                        <span className="flex items-center gap-0.5">
-                          <MessageSquare className="w-3 h-3" strokeWidth={1.6} />{task.comments}
+                  ))
+                ) : (
+                  recentTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="grid grid-cols-[1fr_76px_76px_auto] gap-3 items-center px-5 py-3 hover:bg-muted/20 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusColor[task.status] ?? "bg-slate-400"}`} />
+                        <span className="text-[13px] font-medium truncate">{task.title}</span>
+                      </div>
+                      <div className="hidden sm:block">
+                        <PriorityBadge priority={task.priority} />
+                      </div>
+                      <div className="hidden sm:flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                        <Clock className="w-3 h-3 shrink-0" strokeWidth={1.8} />
+                        <span className="truncate">
+                          {new Date(task.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </span>
-                      )}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 justify-end">
+                        {task.comments > 0 && (
+                          <span className="flex items-center gap-0.5">
+                            <MessageSquare className="w-3 h-3" strokeWidth={1.6} />{task.comments}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {recentTasks.length === 0 && (
+                  ))
+                )}
+                {!tasksLoading && recentTasks.length === 0 && (
                   <div className="flex flex-col items-center py-12 gap-4 text-muted-foreground">
                     <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
                       <Plus className="w-7 h-7 text-primary" strokeWidth={1.5} />
@@ -251,7 +226,13 @@ export default function DashboardPage() {
                 All projects <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
-            {projects.length === 0 ? (
+            {projectsLoading ? (
+              <div className="grid sm:grid-cols-2 gap-3">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="h-[120px] rounded-xl border border-border/40 bg-muted/20 animate-pulse" />
+                ))}
+              </div>
+            ) : projects.length === 0 ? (
               <div className="flex flex-col items-center py-12 gap-4 border border-border/40 rounded-xl text-muted-foreground">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
                   <FolderKanban className="w-7 h-7 text-emerald-500" strokeWidth={1.5} />
