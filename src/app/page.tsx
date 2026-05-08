@@ -129,17 +129,17 @@ function LoginContent() {
               <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-[8px] font-bold text-white">
                 EL
               </div>
-              <p className="text-muted-foreground/70 text-[11px]">Engineering Lead, Nexaflow</p>
+              <p className="text-muted-foreground text-[11px]">Engineering Lead, Nexaflow</p>
             </div>
           </div>
         </div>
 
         {/* Trusted by */}
         <div className="relative z-10 border-t border-border px-8 py-5">
-          <p className="text-muted-foreground/70 text-[10px] uppercase tracking-widest mb-3">Trusted by teams at</p>
+          <p className="text-muted-foreground text-[10px] uppercase tracking-widest mb-3">Trusted by teams at</p>
           <div className="flex items-center gap-4">
             {logos.map((name) => (
-              <span key={name} className="text-muted-foreground/70 text-[11px] font-medium">{name}</span>
+              <span key={name} className="text-muted-foreground text-[11px] font-medium">{name}</span>
             ))}
           </div>
         </div>
@@ -337,29 +337,29 @@ function LoginContent() {
               <div className="mt-5 flex items-center gap-2 p-3 rounded-lg bg-muted/30 border border-border">
                 <ChevronRight className="w-3.5 h-3.5 text-primary/70 shrink-0" />
                 <p className="text-[11px] text-muted-foreground">
-                  Demo credentials are pre-filled. Just hit <span className="text-foreground/60 font-medium">Sign in</span>.
+                  Demo credentials are pre-filled. Just hit <span className="text-foreground/80 font-medium">Sign in</span>.
                 </p>
               </div>
             )}
 
             {/* Mode toggle — mobile fallback */}
-            <p className="text-center text-[11px] text-muted-foreground/70 mt-6 sm:hidden">
+            <p className="text-center text-[11px] text-muted-foreground mt-6 sm:hidden">
               {isRegister ? "Already have an account?" : "No account?"}{" "}
               <button
                 type="button"
                 onClick={() => switchMode(!isRegister)}
-                className="underline hover:text-foreground/50 transition-colors"
+                className="underline hover:text-foreground/70 transition-colors"
                 id="auth-mode-toggle-mobile"
               >
                 {isRegister ? "Sign in" : "Sign up"}
               </button>
             </p>
 
-            <p className="text-center text-[11px] text-muted-foreground/70 mt-4">
+            <p className="text-center text-[11px] text-muted-foreground mt-4">
               By continuing you agree to our{" "}
-              <a href="#" className="underline hover:text-foreground/70 transition-colors" id="terms-link">Terms</a>
+              <a href="#" className="underline hover:text-foreground/80 transition-colors" id="terms-link">Terms</a>
               {" & "}
-              <a href="#" className="underline hover:text-foreground/70 transition-colors" id="privacy-link">Privacy</a>.
+              <a href="#" className="underline hover:text-foreground/80 transition-colors" id="privacy-link">Privacy</a>.
             </p>
           </div>
         </div>
